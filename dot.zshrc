@@ -132,10 +132,10 @@ if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h ]]; then
 fi
 
 # https://github.com/kaplanelad/shellfirm
-if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm ]]; then
-    git clone https://github.com/kaplanelad/shellfirm/ ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm
-    ln -s ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm/shell-plugins/shellfirm.plugin.zsh ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm/shellfirm.plugin.zsh
-fi
+#if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm ]]; then
+#    git clone https://github.com/kaplanelad/shellfirm/ ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm
+#    ln -s ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm/shell-plugins/shellfirm.plugin.zsh ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/shellfirm/shellfirm.plugin.zsh
+#fi
 
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
@@ -176,15 +176,14 @@ plugins=(
     # emacs
     git-open
     globalias
-    ripgrep
+    # ripgrep
     terraform
     thefuck
-    ufw
     command-not-found
     common-aliases
     gh
     magic-enter
-    shellfirm
+    # shellfirm
     # zsh_reload
     zsh-navigation-tools
     history-substring-search
@@ -195,7 +194,7 @@ plugins=(
 
 export HISTFILE=$TRU_HISTFILE
 export HISTSIZE=500000
-export SAVEHIST=100000
+export SAVEHIST=500000
 
 # https://github.com/Aloxaf/fzf-tab/issues/167#issuecomment-737235400
 autoload -Uz compinit; compinit
@@ -364,15 +363,13 @@ else
 fi
 
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
-[ $TERM = "dumb" ] && unsetopt zle && PS1='# '
-
 # https://github.com/zsh-users/zsh-history-substring-search
 bindkey -M emacs '^P' history-substring-search-up
 bindkey -M emacs '^N' history-substring-search-down
 HISTORY_SUBSTRING_SEARCH_FUZZY=1
 HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=1
 
-set -o emacs
+bindkey -e
 if [ -n "$INSIDE_EMACS" ]; then
   # chpwd() { print -P "\033AnSiTc %d" }
 
@@ -447,7 +444,7 @@ export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib/:/usr/local/lib/
 # export CPPFLAGS="-I/usr/local/opt/imagemagick@6/include"
 # export PKG_CONFIG_PATH="/usr/local/opt/imagemagick@6/lib/pkgconfig"
 
-alias magit='emacsclient --eval "(magit-status)" && emacs'
+alias magit='emacsclient --eval "(magit-status)"'
 
 alias emacsk="emacsclient --eval \"(progn (save-some-buffers) (kill-emacs))\""
 
@@ -472,13 +469,10 @@ function tru/proxy () {
 
 tru/proxy off
 
-export PATH=/usr/local/bin:/opt/homebrew/bin:/usr/local/opt:$PATH:/opt/local/bin:/opt/local/sbin:/usr/local/mysql/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/git/bin:~/.composer/vendor/bin:/usr/local/sbin:/snap/bin
+export PATH=/usr/local/bin:/usr/local/opt:$PATH:/opt/local/bin:/opt/local/sbin
 PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
-export PATH="/usr/local/opt/node@8/bin:$PATH"
 export PATH="$HOME/.tgenv/bin:$PATH"
 export PATH="/usr/local/opt/sqlite/bin:$PATH"
-
-export PATH="/usr/local/opt/node@10/bin:$PATH"
 export PATH="/usr/local/opt/curl/bin:$PATH"
 
 # Go path for macOS
@@ -498,10 +492,10 @@ export LC_ALL="en_US.UTF-8"
 export LC_CTYPE="en_US.UTF-8"
 
 autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /usr/local/bin/mc mc
+(( $+commands[mc] )) && complete -o nospace -C $(which mc) mc
 
 # broot
-source ~/.config/broot/launcher/bash/br
+# source ~/.config/broot/launcher/bash/br
 
 tru/upgrade_custom_plugins () {
   printf "\e[1;34m%s\e[0m \n" "Upgrading custom plugins"
@@ -509,15 +503,14 @@ tru/upgrade_custom_plugins () {
   find "${ZSH_CUSTOM}" -type d -name .git | while read d
   do
     p=$(dirname "$d")
-    cd "${p}"
     echo -e "\e[0;33m${p}\e[0m"
-    if git pull --rebase --stat origin master
+    if git -C "${p}" pull --rebase --stat origin "$(git -C "${p}" remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')"
     then
       printf "\e[0;92m%s\e[0m\n" "Hooray! $d has been updated and/or is at the current version."
     else
       printf "\e[1;31m%s\e[0m\n" 'There was an error updating. Try again later?'
     fi
-    echo "\n"
+    print ""
   done
 }
 
@@ -789,7 +782,7 @@ awsp() {
 }
 
 aws-profiles() {
-    cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']'
+    grep '\[' ~/.aws/credentials | grep -v '#' | tr -d '[]'
 }
 
 export AWS_PAGER=""
@@ -800,13 +793,6 @@ addspace_ (){
 }
 zle -N addspace_
 bindkey "^s" addspace_
-
-# spaceship
-# https://github.com/tru2dagame/spaceship-prompt/blob/master/docs/Options.md#directory-dir
-SPACESHIP_USER_SHOW=always
-SPACESHIP_TIME_SHOW=true
-SPACESHIP_DIR_TRUNC_REPO=false
-SPACESHIP_DIR_TRUNC=0
 
 
 
@@ -868,7 +854,7 @@ POWERLEVEL9K_SHORTEN_DELIMITER=""
 POWERLEVEL9K_SHORTEN_STRATEGY="truncate_absolute"
 POWERLEVEL9K_OS_ICON_FOREGROUND=232
 #POWERLEVEL9K_OS_ICON_BACKGROUND='99'
-POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🏀'
+POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🐲'
 #POWERLEVEL9K_DIR_BACKGROUND=99
 unset POWERLEVEL9K_AWS_SHOW_ON_COMMAND
 typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=99
@@ -911,8 +897,9 @@ for n ({1..5}) alias -g NH$n=".*(.om[$n])"
 # NH1 # newest hidden file
 # NH2 # 2nd newest hidden file
 
-# Ref: https://cli.github.com/manual/gh_completion
-compinit -i
+# make snippets executable (interactive shell only)
+[[ -d $SNIPPETS_PATH ]] && chmod -R +x $SNIPPETS_PATH/*
 
 # end if dumb
 fi
+export PATH="$HOME/.local/bin:$PATH"

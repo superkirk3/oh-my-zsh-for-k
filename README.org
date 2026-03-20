@@ -287,7 +287,6 @@ plugins=(
     ripgrep
     terraform
     thefuck
-    ufw
     command-not-found
     common-aliases
     gh
@@ -307,7 +306,7 @@ plugins=(
 #+begin_src shell
 export HISTFILE=$TRU_HISTFILE
 export HISTSIZE=500000
-export SAVEHIST=100000
+export SAVEHIST=500000
 #+end_src
 
 **** Fzf-tab
@@ -500,7 +499,6 @@ else
 fi
 
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
-[ $TERM = "dumb" ] && unsetopt zle && PS1='# '
 
 # https://github.com/zsh-users/zsh-history-substring-search
 bindkey -M emacs '^P' history-substring-search-up
@@ -508,7 +506,7 @@ bindkey -M emacs '^N' history-substring-search-down
 HISTORY_SUBSTRING_SEARCH_FUZZY=1
 HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=1
 
-set -o emacs
+bindkey -e
 if [ -n "$INSIDE_EMACS" ]; then
   # chpwd() { print -P "\033AnSiTc %d" }
 
@@ -587,7 +585,7 @@ export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib/:/usr/local/lib/
 [[#contents][🔝]]
 **** Shell Magit
 #+begin_src shell
-alias magit='emacsclient --eval "(magit-status)" && emacs'
+alias magit='emacsclient --eval "(magit-status)"'
 #+end_src
 **** Save and Exit
 #+begin_src shell
@@ -622,13 +620,10 @@ tru/proxy off
 
 *** Path
 #+begin_src shell
-export PATH=/usr/local/bin:/opt/homebrew/bin:/usr/local/opt:$PATH:/opt/local/bin:/opt/local/sbin:/usr/local/mysql/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/git/bin:~/.composer/vendor/bin:/usr/local/sbin:/snap/bin
+export PATH=/usr/local/bin:/usr/local/opt:$PATH:/opt/local/bin:/opt/local/sbin
 PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
-export PATH="/usr/local/opt/node@8/bin:$PATH"
 export PATH="$HOME/.tgenv/bin:$PATH"
 export PATH="/usr/local/opt/sqlite/bin:$PATH"
-
-export PATH="/usr/local/opt/node@10/bin:$PATH"
 export PATH="/usr/local/opt/curl/bin:$PATH"
 #+end_src
 [[#contents][🔝]]
@@ -657,7 +652,7 @@ export LC_ALL="en_US.UTF-8"
 export LC_CTYPE="en_US.UTF-8"
 
 autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /usr/local/bin/mc mc
+(( $+commands[mc] )) && complete -o nospace -C $(which mc) mc
 
 # broot
 source ~/.config/broot/launcher/bash/br
@@ -672,15 +667,14 @@ tru/upgrade_custom_plugins () {
   find "${ZSH_CUSTOM}" -type d -name .git | while read d
   do
     p=$(dirname "$d")
-    cd "${p}"
     echo -e "\e[0;33m${p}\e[0m"
-    if git pull --rebase --stat origin master
+    if git -C "${p}" pull --rebase --stat origin "$(git -C "${p}" remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')"
     then
       printf "\e[0;92m%s\e[0m\n" "Hooray! $d has been updated and/or is at the current version."
     else
       printf "\e[1;31m%s\e[0m\n" 'There was an error updating. Try again later?'
     fi
-    echo "\n"
+    print ""
   done
 }
 
@@ -993,7 +987,7 @@ awsp() {
 }
 
 aws-profiles() {
-    cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']'
+    grep '\[' ~/.aws/credentials | grep -v '#' | tr -d '[]'
 }
 
 export AWS_PAGER=""
@@ -1013,15 +1007,6 @@ bindkey "^s" addspace_
 
 *** Spaceship
 #+begin_src shell
-# spaceship
-# https://github.com/tru2dagame/spaceship-prompt/blob/master/docs/Options.md#directory-dir
-SPACESHIP_USER_SHOW=always
-SPACESHIP_TIME_SHOW=true
-SPACESHIP_DIR_TRUNC_REPO=false
-SPACESHIP_DIR_TRUNC=0
-
-
-
 # zprof    # debug
 
 #+end_src
@@ -1139,13 +1124,11 @@ for n ({1..5}) alias -g NH$n=".*(.om[$n])"
 #+end_src
 [[#contents][🔝]]
 
-*** zsh completion
+*** Snippets
 #+begin_src shell
-# Ref: https://cli.github.com/manual/gh_completion
-compinit -i
+# make snippets executable (interactive shell only)
+[[ -d $SNIPPETS_PATH ]] && chmod -R +x $SNIPPETS_PATH/*
 #+end_src
-
-#+RESULTS:
 
 *** End File
 #+begin_src shell
