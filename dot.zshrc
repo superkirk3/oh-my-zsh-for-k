@@ -369,9 +369,6 @@ export ZSH_PLUGINS_ALIAS_TIPS_EXCLUDES="_ emacs ll"
 # Add em alias for macOS
 # PR Merged!
 if [[ "$(uname)" == 'Darwin' ]]; then
-    if [[ -x "/Applications/Emacs.app/Contents/MacOS/Emacs" ]]; then
-        alias emacs='"/Applications/Emacs.app/Contents/MacOS/Emacs"'
-    fi
     alias em="emacs"
     #export EDITOR="emacs"
     # export EDITOR='/opt/homebrew/bin/emacs -nw -Q'
@@ -428,6 +425,72 @@ user_emacsclient_eval() {
     fi
 }
 
+user_emacs_frame_eval() {
+    cat <<EOF
+(when (display-graphic-p)
+  (when (fboundp 'select-frame-set-input-focus)
+    (select-frame-set-input-focus (selected-frame)))
+  (when (fboundp 'x-focus-frame)
+    (ignore-errors (x-focus-frame (selected-frame))))
+  (when (fboundp 'ns-do-applescript)
+    (ignore-errors
+      (ns-do-applescript "tell application \\"Emacs\\" to activate"))))
+EOF
+}
+
+user_emacs_eval_form() {
+    local body=${1:-nil}
+    printf '(progn %s %s)\n' "$(user_emacs_frame_eval)" "$body"
+}
+
+user_emacs_server_running() {
+    local emacsclient_cmd
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+    [[ -n "$emacsclient_cmd" ]] || return 1
+    "$emacsclient_cmd" --eval t > /dev/null 2>&1
+}
+
+user_emacs_eval_async() {
+    local emacsclient_cmd emacs_cmd eval_form
+    eval_form=$(user_emacs_eval_form "${1:-nil}")
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+
+    if [[ -n "$emacsclient_cmd" ]] && user_emacs_server_running; then
+        "$emacsclient_cmd" --no-wait --eval "$eval_form" > /dev/null 2>&1 &!
+    elif [[ -n "$emacs_cmd" ]]; then
+        "$emacs_cmd" --eval "$eval_form" > /dev/null 2>&1 &!
+    else
+        print -u2 "Emacs is not installed."
+        return 1
+    fi
+}
+
+user_emacs_open() {
+    local emacs_cmd emacsclient_cmd
+    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+
+    if [[ -n "$emacsclient_cmd" ]] && user_emacs_server_running; then
+        "$emacsclient_cmd" --no-wait "$@" > /dev/null 2>&1 &!
+        user_emacs_eval_async nil
+        return 0
+    fi
+
+    if [[ -z "$emacs_cmd" ]]; then
+        print -u2 "Emacs is not installed."
+        return 1
+    fi
+
+    "$emacs_cmd" --eval "$(user_emacs_eval_form nil)" "$@" > /dev/null 2>&1 &!
+}
+
+if [[ "$(uname)" == 'Darwin' ]]; then
+    emacs() {
+        user_emacs_open "$@"
+    }
+fi
+
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
 # https://github.com/zsh-users/zsh-history-substring-search
 bindkey -M emacs '^P' history-substring-search-up
@@ -469,33 +532,17 @@ fi
 
 # The emacs or emacsclient command to use
 e() {
-    local TMP emacs_cmd emacsclient_cmd
-    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
-    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+    local TMP
 
     if [[ "$1" == "-" ]]; then
         TMP="$(mktemp /tmp/emacsstdinXXX)"
         cat >"$TMP"
-        if [[ -n "$emacsclient_cmd" ]] && ! user_emacsclient_eval --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))" > /dev/null 2>&1; then
-            :
-        elif [[ -n "$emacsclient_cmd" ]]; then
-            return 0
-        fi
-
-        if [[ -n "$emacs_cmd" ]]; then
-            "$emacs_cmd" --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))" > /dev/null 2>&1 &
-        else
-            print -u2 "Emacs is not installed."
+        if ! user_emacs_eval_async "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))"; then
             rm -f "$TMP"
             return 1
         fi
     else
-        if [[ -n "$emacsclient_cmd" ]]; then
-            user_emacsclient_eval --no-wait "$@" > /dev/null 2>&1 &
-        elif [[ -n "$emacs_cmd" ]]; then
-            "$emacs_cmd" "$@" > /dev/null 2>&1 &
-        else
-            print -u2 "Emacs is not installed."
+        if ! user_emacs_open "$@"; then
             return 1
         fi
     fi
@@ -531,16 +578,7 @@ export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib/:/usr/local/lib/
 # export PKG_CONFIG_PATH="/usr/local/opt/imagemagick@6/lib/pkgconfig"
 
 magit() {
-    local emacs_cmd emacsclient_cmd
-    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
-    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
-
-    if [[ -n "$emacsclient_cmd" ]]; then
-        user_emacsclient_eval --eval "(magit-status)"
-    elif [[ -n "$emacs_cmd" ]]; then
-        "$emacs_cmd" --eval "(magit-status)"
-    else
-        print -u2 "Emacs is not installed."
+    if ! user_emacs_eval_async "(magit-status)"; then
         return 1
     fi
 }
@@ -937,7 +975,7 @@ if [[ -n $fzf ]]; then
     line=${rest%%:*}
     rest=${rest#*:}
     column=${rest%%:*}
-    user_emacsclient_eval --eval "(progn (find-file \"$file\") (goto-line $line) (forward-char $column) (recenter))" > /dev/null 2>&1
+    user_emacs_eval_async "(progn (find-file \"$file\") (goto-line $line) (forward-char $column) (recenter))" > /dev/null 2>&1
 fi
 }
 

@@ -21,18 +21,30 @@ find_bin() {
     return 1
 }
 
+frame_eval() {
+    cat <<EOF
+(when (display-graphic-p)
+  (when (fboundp 'select-frame-set-input-focus)
+    (select-frame-set-input-focus (selected-frame)))
+  (when (fboundp 'x-focus-frame)
+    (ignore-errors (x-focus-frame (selected-frame))))
+  (when (fboundp 'ns-do-applescript)
+    (ignore-errors
+      (ns-do-applescript "tell application \\"Emacs\\" to activate"))))
+EOF
+}
+
 emacsclient_bin="$(find_bin emacsclient)"
 emacs_bin="$(find_bin emacs || true)"
+frame_lisp="$(frame_eval)"
 
-if [ -n "$emacsclient_bin" ]; then
-    if [ -n "$emacs_bin" ]; then
-        exec "$emacsclient_bin" -F -c -a "$emacs_bin" "$@"
-    fi
-    exec "$emacsclient_bin" -F -c "$@"
+if [ -n "$emacsclient_bin" ] && "$emacsclient_bin" --eval t >/dev/null 2>&1; then
+    "$emacsclient_bin" --no-wait --eval "$frame_lisp" >/dev/null 2>&1 &
+    exec "$emacsclient_bin" "$@"
 fi
 
 if [ -n "$emacs_bin" ]; then
-    exec "$emacs_bin" "$@"
+    exec "$emacs_bin" --eval "$frame_lisp" "$@"
 fi
 
 printf '%s\n' "Could not find emacsclient or emacs in PATH." >&2
