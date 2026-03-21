@@ -59,7 +59,7 @@ My zshrc
 ** Install
 
 #+begin_src shell
-git clone https://github.com/tru2dagame/dot.zshrc.git ~/.zshrc.d
+git clone https://github.com/superkirk3/oh-my-zsh-for-k.git ~/.zshrc.d
 mv ~/.zshrc ~/.zshrc.bak
 ln -s ~/.zshrc.d/dot.zshrc ~/.zshrc
 ln -s ~/.zshrc.d/.zshenv ~/.zshenv
@@ -193,8 +193,7 @@ if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-histdb ]]; then
 fi
 
 if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/history-sync ]]; then
-    # git clone https://github.com/wulfgarpro/history-sync.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/history-sync
-    git clone -b patch-1 https://github.com/tru2dagame/history-sync.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/history-sync
+    git clone https://github.com/wulfgarpro/history-sync.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/history-sync
 fi
 
 if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/z.lua ]]; then
@@ -232,7 +231,7 @@ fi
 
 if [[ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h ]]; then
     git clone https://github.com/paoloantinori/hhighlighter.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h
-    mv ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h/h.sh ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h/h.plugin.zsh
+    [[ -f ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h/h.sh ]] && mv ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h/h.sh ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/h/h.plugin.zsh
 fi
 
 # https://github.com/kaplanelad/shellfirm
@@ -299,6 +298,22 @@ plugins=(
     zsh-completions
     zsh-syntax-highlighting
 )
+
+if ! (( $+commands[autojump] )); then
+    plugins=(${plugins:#autojump})
+fi
+
+if ! (( $+commands[tmux] )); then
+    plugins=(${plugins:#tmux})
+fi
+
+if ! (( $+commands[fzf] )); then
+    plugins=(${plugins:#fzf})
+fi
+
+if ! (( $+commands[thefuck] )); then
+    plugins=(${plugins:#thefuck})
+fi
 #+end_src
 [[#contents][🔝]]
 
@@ -313,7 +328,12 @@ export SAVEHIST=500000
 #+begin_src shell
 # https://github.com/Aloxaf/fzf-tab/issues/167#issuecomment-737235400
 autoload -Uz compinit; compinit
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+if [[ -f ~/.fzf.zsh ]]; then
+  source ~/.fzf.zsh
+else
+  [[ -r /opt/homebrew/opt/fzf/shell/completion.zsh ]] && source /opt/homebrew/opt/fzf/shell/completion.zsh
+  [[ -r /opt/homebrew/opt/fzf/shell/key-bindings.zsh ]] && source /opt/homebrew/opt/fzf/shell/key-bindings.zsh
+fi
 
 # fzf-tab
 zstyle ':fzf-tab:complete:_zlua:*' query-string input
@@ -329,7 +349,11 @@ zstyle -d ':completion:*' format
 zstyle ':completion:*:descriptions' format '[%d]'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ":fzf-tab:*" fzf-flags --color=bg+:99
-zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup # tmux 3.2
+if (( $+commands[tmux] )); then
+  zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup # tmux 3.2
+else
+  zstyle ':fzf-tab:*' fzf-command fzf
+fi
 #zstyle ':fzf-tab:*' fzf-command 'fzf-tmux'
 # zstyle ':fzf-tab:*' switch-group ',' '.'
 
@@ -417,7 +441,7 @@ ZSH_AUTOSUGGEST_STRATEGY=(histdb_top_fallback history completion)
 HISTDB_TABULATE_CMD=(sed -e $'s/\x1f/\t/g')
 alias histdb2='HISTDB_TABULATE_CMD=(sed -e $"s/.*\x1f//") histdb'
 
-tru/show_local_history() {
+user_show_local_history() {
     # limit="${1:-10}"
     # local query="
     #     select history.start_time, commands.argv
@@ -455,7 +479,7 @@ tru/show_local_history() {
 }
 
 ### zsh-histdb
-source $HOME/.oh-my-zsh/custom/plugins/zsh-histdb/sqlite-history.zsh
+[[ -r $HOME/.oh-my-zsh/custom/plugins/zsh-histdb/sqlite-history.zsh ]] && source $HOME/.oh-my-zsh/custom/plugins/zsh-histdb/sqlite-history.zsh
 autoload -Uz add-zsh-hook
 # add-zsh-hook precmd histdb-update-outcome
 ### end zsh-histdb
@@ -481,8 +505,10 @@ export ZSH_PLUGINS_ALIAS_TIPS_EXCLUDES="_ emacs ll"
 # Add em alias for macOS
 # PR Merged!
 if [[ "$(uname)" == 'Darwin' ]]; then
+    if [[ -x "/Applications/Emacs.app/Contents/MacOS/Emacs" ]]; then
+        alias emacs='"/Applications/Emacs.app/Contents/MacOS/Emacs"'
+    fi
     alias em="emacs"
-    alias emacs='open -a "/Applications/Emacs.app" '
     #export EDITOR="emacs"
     # export EDITOR='/opt/homebrew/bin/emacs -nw -Q'
     #export VISUAL="emacs"
@@ -497,6 +523,46 @@ else
     # workaround for https://github.com/robbyrussell/oh-my-zsh/pull/5714
     # alias emacs="te"
 fi
+
+user_emacs_command() {
+    if [[ -x "/Applications/Emacs.app/Contents/MacOS/Emacs" ]]; then
+        print -r -- "/Applications/Emacs.app/Contents/MacOS/Emacs"
+    elif (( $+commands[emacs] )); then
+        print -r -- "$commands[emacs]"
+    elif [[ -x /opt/homebrew/bin/emacs ]]; then
+        print -r -- /opt/homebrew/bin/emacs
+    elif [[ -x /usr/local/bin/emacs ]]; then
+        print -r -- /usr/local/bin/emacs
+    else
+        return 1
+    fi
+}
+
+user_emacsclient_command() {
+    if [[ -x "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient" ]]; then
+        print -r -- "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"
+    elif (( $+commands[emacsclient] )); then
+        print -r -- "$commands[emacsclient]"
+    elif [[ -x /opt/homebrew/bin/emacsclient ]]; then
+        print -r -- /opt/homebrew/bin/emacsclient
+    elif [[ -x /usr/local/bin/emacsclient ]]; then
+        print -r -- /usr/local/bin/emacsclient
+    else
+        return 1
+    fi
+}
+
+user_emacsclient_eval() {
+    local emacsclient_cmd emacs_cmd
+    emacsclient_cmd=$(user_emacsclient_command) || return 1
+    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+
+    if [[ -n "$emacs_cmd" ]]; then
+        "$emacsclient_cmd" --alternate-editor "$emacs_cmd" "$@"
+    else
+        "$emacsclient_cmd" "$@"
+    fi
+}
 
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
 
@@ -522,12 +588,12 @@ if [ -n "$INSIDE_EMACS" ]; then
   # PROMPT=$PROMPT'%{$(vterm_prompt_end)%}'
 
 else
-  test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
-  # tab title show hostname
-  # function precmd {
-  #   vcs_info
-  #   print -P "\n$(repo_information) %F{yellow}$(cmd_exec_time) \e]0;%m\a%f"
-  # }
+  if [[ "$TERM_PROGRAM" == iTerm.app ]]; then
+    [[ -r "${HOME}/.iterm2_shell_integration.zsh" ]] && source "${HOME}/.iterm2_shell_integration.zsh"
+    if typeset -f iterm2_profile > /dev/null && [[ -n "${ITERM2_DEFAULT_PROFILE:-}" ]] && [[ "${ITERM_PROFILE:-}" != "$ITERM2_DEFAULT_PROFILE" ]]; then
+      iterm2_profile "$ITERM2_DEFAULT_PROFILE"
+    fi
+  fi
 
 fi
 
@@ -540,16 +606,36 @@ fi
 
 # The emacs or emacsclient command to use
 e() {
-    local TMP;
+    local TMP emacs_cmd emacsclient_cmd
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+
     if [[ "$1" == "-" ]]; then
-        TMP="$(mktemp /tmp/emacsstdinXXX)";
-        cat >"$TMP";
-        if ! emacsclient --alternate-editor /usr/bin/false --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))"  > /dev/null 2>&1; then
-            emacs --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))" &
-        fi;
+        TMP="$(mktemp /tmp/emacsstdinXXX)"
+        cat >"$TMP"
+        if [[ -n "$emacsclient_cmd" ]] && ! user_emacsclient_eval --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))" > /dev/null 2>&1; then
+            :
+        elif [[ -n "$emacsclient_cmd" ]]; then
+            return 0
+        fi
+
+        if [[ -n "$emacs_cmd" ]]; then
+            "$emacs_cmd" --eval "(let ((b (create-file-buffer \"my_drafts\"))) (tab-bar-new-tab) (switch-to-buffer b) (insert-file-contents \"${TMP}\") (delete-file \"${TMP}\"))" > /dev/null 2>&1 &
+        else
+            print -u2 "Emacs is not installed."
+            rm -f "$TMP"
+            return 1
+        fi
     else
-        emacsclient --alternate-editor "emacs" --no-wait "$@" > /dev/null 2>&1 &
-    fi;
+        if [[ -n "$emacsclient_cmd" ]]; then
+            user_emacsclient_eval --no-wait "$@" > /dev/null 2>&1 &
+        elif [[ -n "$emacs_cmd" ]]; then
+            "$emacs_cmd" "$@" > /dev/null 2>&1 &
+        else
+            print -u2 "Emacs is not installed."
+            return 1
+        fi
+    fi
 }
 
 # https://github.com/akermu/emacs-libvterm/blob/7adecaa48c222f2567d503705547cf239e38fc4b/README.md#shell-side-configuration
@@ -585,18 +671,41 @@ export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib/:/usr/local/lib/
 [[#contents][🔝]]
 **** Shell Magit
 #+begin_src shell
-alias magit='emacsclient --eval "(magit-status)"'
+magit() {
+    local emacs_cmd emacsclient_cmd
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+    emacs_cmd=$(user_emacs_command 2>/dev/null || true)
+
+    if [[ -n "$emacsclient_cmd" ]]; then
+        user_emacsclient_eval --eval "(magit-status)"
+    elif [[ -n "$emacs_cmd" ]]; then
+        "$emacs_cmd" --eval "(magit-status)"
+    else
+        print -u2 "Emacs is not installed."
+        return 1
+    fi
+}
 #+end_src
 **** Save and Exit
 #+begin_src shell
-alias emacsk="emacsclient --eval \"(progn (save-some-buffers) (kill-emacs))\""
+emacsk() {
+    local emacsclient_cmd
+    emacsclient_cmd=$(user_emacsclient_command 2>/dev/null || true)
+
+    if [[ -z "$emacsclient_cmd" ]]; then
+        print -u2 "emacsclient is not installed."
+        return 1
+    fi
+
+    "$emacsclient_cmd" --eval "(progn (save-some-buffers) (kill-emacs))"
+}
 #+end_src
 
 *** Function proxy enable/disable
 #+begin_src shell
 export PS1_backup=$PS1
 
-function tru/proxy () {
+function user_proxy () {
     local prefix
     if [ "$1" = "on" ]; then
         export https_proxy=127.0.0.1:8888
@@ -613,7 +722,7 @@ function tru/proxy () {
     export PS1="$prefix $PS1_backup"
 }
 
-tru/proxy off
+user_proxy off
 
 #+end_src
 [[#contents][🔝]]
@@ -623,6 +732,7 @@ tru/proxy off
 export PATH=/usr/local/bin:/usr/local/opt:$PATH:/opt/local/bin:/opt/local/sbin
 PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
 export PATH="$HOME/.tgenv/bin:$PATH"
+export PATH="$HOME/.emacs.d/bin:$PATH"
 export PATH="/usr/local/opt/sqlite/bin:$PATH"
 export PATH="/usr/local/opt/curl/bin:$PATH"
 #+end_src
@@ -655,13 +765,13 @@ autoload -U +X bashcompinit && bashcompinit
 (( $+commands[mc] )) && complete -o nospace -C $(which mc) mc
 
 # broot
-source ~/.config/broot/launcher/bash/br
+[[ -r ~/.config/broot/launcher/bash/br ]] && source ~/.config/broot/launcher/bash/br
 #+end_src
 [[#contents][🔝]]
 
 *** Upgrade_custom_plugins
 #+begin_src shell
-tru/upgrade_custom_plugins () {
+user_upgrade_custom_plugins () {
   printf "\e[1;34m%s\e[0m \n" "Upgrading custom plugins"
 
   find "${ZSH_CUSTOM}" -type d -name .git | while read d
@@ -686,7 +796,25 @@ tru/upgrade_custom_plugins () {
 #+begin_src shell
 # fzf https://github.com/junegunn/fzf/wiki/Configuring-shell-key-bindings
 export FZF_TMUX=1
-alias fzf='fzf-tmux -p 80% --cycle'
+fzf() {
+  if [[ -n "$TMUX" ]] && (( $+commands[fzf-tmux] )); then
+    command fzf-tmux -p 80% --cycle "$@"
+  else
+    command fzf --cycle "$@"
+  fi
+}
+
+user_fzf_popup() {
+  local popup_size=${1:-80%}
+  shift || true
+
+  if [[ -n "$TMUX" ]] && (( $+commands[fzf-tmux] )); then
+    command fzf-tmux -p "$popup_size" --cycle "$@"
+  else
+    command fzf --cycle "$@"
+  fi
+}
+
 fzf-history-widget-accept() {
   fzf-history-widget
   zle accept-line
@@ -745,59 +873,99 @@ fif2() {
 [[#contents][🔝]]
 
 **** fzf snippets
-https://github.com/tru2dagame/shownotes/blob/master/fzf-snippet.md
-
 #+begin_src shell
 _tru_fzf-snippet() {
+    emulate -L zsh
+    setopt local_options no_shwordsplit null_glob pipefail
 
-    unsetopt shwordsplit
-    # merge filename and tags into single line
-    results=$(for FILE in $SNIPPETS_PATH/*
-              do
-                  getname=$(basename $FILE)
-                  gettags=$(head -n 2 $FILE | tail -1)
-                  echo "$gettags ,| $getname"
-              done)
+    local snippets_dir=${SNIPPETS_PATH%/}
+    local -a snippet_files
+    local file name tags preview_cmd preview key selected filename body
+    local body_lines
+    local screen_width gap max_name_width name_width desc_width display_tags
 
-    preview=`echo $results | column -s ',' -t | fzf -p 90% -i --ansi --bind ctrl-/:toggle-preview "$@" --preview-window up:wrap --preview "echo {} | cut -f2 -d'|' | tr -d ' ' | xargs -I % bat --color=always --language bash --plain $SNIPPETS_PATH/%" --expect=alt-enter`
-
-    if [  -z "$preview" ]; then
-        return
+    if [[ -z "$snippets_dir" || ! -d "$snippets_dir" ]]; then
+        zle -M "SNIPPETS_PATH is not available: ${SNIPPETS_PATH:-unset}"
+        return 1
     fi
 
-    key="$(head -1 <<< "$preview")"
-    rest="$(sed 1d <<< "$preview")"
-    filename=$(echo $rest | cut -f2 -d'|' | tr -d ' ')
+    snippet_files=($snippets_dir/*(N))
+    if (( ! $#snippet_files )); then
+        zle -M "No snippets found in $snippets_dir"
+        return 1
+    fi
+
+    max_name_width=0
+    for file in $snippet_files; do
+        name=${file:t}
+        (( ${#name} > max_name_width )) && max_name_width=${#name}
+    done
+
+    screen_width=${COLUMNS:-120}
+    gap=${FZF_SNIPPETS_GAP:-8}
+    name_width=${FZF_SNIPPETS_NAME_WIDTH:-$max_name_width}
+    (( name_width > max_name_width )) && name_width=$max_name_width
+    (( name_width < 24 )) && name_width=24
+    desc_width=$(( screen_width - name_width - gap - 4 ))
+    (( desc_width < 24 )) && desc_width=24
+
+    preview_cmd=$'file=$(printf "%s" {} | awk -F "\\t" \'{print $NF}\')\n'\
+'if command -v bat >/dev/null 2>&1; then\n'\
+"  bat --color=always --language bash --plain -- \"$snippets_dir/\$file\"\n"\
+'else\n'\
+"  sed -n '1,200p' \"$snippets_dir/\$file\"\n"\
+'fi'
+
+    preview=$(
+      for file in $snippet_files; do
+          name=${file:t}
+          tags=$(sed -n '2p' "$file")
+          display_tags=${tags:-$name}
+          printf '%-*.*s%*s\t%s\n' \
+              "$desc_width" "$desc_width" "$display_tags" \
+              $((name_width + gap)) "$name" \
+              "$name"
+      done | user_fzf_popup 90% -i --ansi --bind ctrl-/:toggle-preview "$@" \
+          --delimiter=$'\t' --with-nth=1 \
+          --preview-window up:wrap --preview "$preview_cmd" --expect=alt-enter
+    )
+
+    [[ -z "$preview" ]] && return 0
+
+    key=${preview%%$'\n'*}
+    selected=${preview#*$'\n'}
+    [[ "$selected" == "$preview" ]] && return 0
+    filename=${selected##*$'\t'}
+    [[ -z "$filename" ]] && return 0
+
+    body=$(sed '1,2d' "$snippets_dir/$filename")
+    body_lines=$(print -r -- "$body" | wc -l | tr -d ' ')
 
     case "$key" in
         alt-enter)
-            BUFFER=" $(cat $SNIPPETS_PATH/$filename | sed 1,2d)"
+            BUFFER=" $body"
             ;;
-        ,*)
-            if [[ $(cat $SNIPPETS_PATH/$filename | sed 1,2d | wc -l | bc) -lt 8 ]]; then
-            #if [[ $(cat $SNIPPETS_PATH/$filename | sed 1,2d | wc -l | bc) < 8 ]]; then
-                BUFFER=" $(cat $SNIPPETS_PATH/$filename | sed 1,2d)"
+        *)
+            if (( body_lines < 8 )); then
+                BUFFER=" $body"
             else
-                chmod +x $SNIPPETS_PATH/$filename
-                BUFFER=" . $filename"
+                chmod +x "$snippets_dir/$filename"
+                BUFFER=" . ${(q)filename}"
             fi
             ;;
     esac
 
-    # if [ ! -z "$preview" ]
-    # then
-    #     filename=$(echo $preview | cut -f2 -d'|' | tr -d ' ')
-    #     BUFFER=" $(cat $SNIPPETS_PATH/$filename | sed 1d)"
-    #     CURSOR=0
-    # fi
-
-    #unset USE_NAME
+    zle reset-prompt
 }
 
 zle -N _tru_fzf-snippet
-bindkey "^X'" _tru_fzf-snippet
-bindkey "^[^[" _tru_fzf-snippet
-bindkey "^[x" _tru_fzf-snippet
+# Give Esc Esc enough time for manual double-taps.
+(( ${KEYTIMEOUT:-40} < ${FZF_SNIPPETS_KEYTIMEOUT:-80} )) && KEYTIMEOUT=${FZF_SNIPPETS_KEYTIMEOUT:-80}
+for keymap in emacs viins vicmd; do
+    bindkey -M $keymap "^X'" _tru_fzf-snippet
+    bindkey -M $keymap "^[^[" _tru_fzf-snippet
+    bindkey -M $keymap "^[x" _tru_fzf-snippet
+done
 #+end_src
 [[#contents][🔝]]
 
@@ -828,7 +996,7 @@ bindkey '^J' _jump_to_tabstop_in_snippet
 **** fzf tmux
 #+begin_src shell
 # https://github.com/junegunn/fzf/wiki/Examples#tmux
-tru/tmux-ftpane() {
+user_tmux_ftpane() {
   local panes current_window current_pane target target_window target_pane
   panes=$(tmux list-panes -s -F '#I:#P - #{pane_current_path} #{pane_current_command}')
   current_pane=$(tmux display-message -p '#I:#P')
@@ -855,7 +1023,7 @@ is_in_git_repo() {
 }
 
 fzf-down() {
-  fzf -p 88% --border --bind ctrl-/:toggle-preview "$@"
+  user_fzf_popup 88% --border --bind ctrl-/:toggle-preview "$@"
 }
 
 fzf_gf() {
@@ -949,7 +1117,7 @@ fzf=$(FZF_DEFAULT_COMMAND="$RG_PREFIX $(printf %q "$INITIAL_QUERY")" \
         --disabled --query "$INITIAL_QUERY" \
         --bind "change:reload:sleep 0.1; $RG_PREFIX {q} || true" \
         --bind "alt-enter:unbind(change,alt-enter)+change-prompt(2. fzf> )+enable-search+clear-query" \
-        --bind "ctrl-o:execute-silent:(emacsclient --eval \"(progn (find-file \\\"\$(echo {} | awk -F ':' '{print \$1}')\\\") (goto-line \$(echo {} | awk -F ':' '{print \$2}')) (forward-char \$(echo {} | awk -F ':' '{print \$3}')) (recenter))\") && open  \"/Applications/Emacs.app\"" \
+        --bind "ctrl-o:execute-silent:(emacsclient --alternate-editor emacs --eval \"(progn (find-file \\\"\$(echo {} | awk -F ':' '{print \$1}')\\\") (goto-line \$(echo {} | awk -F ':' '{print \$2}')) (forward-char \$(echo {} | awk -F ':' '{print \$3}')) (recenter))\")" \
         --prompt '1. ripgrep> ' \
         --delimiter : \
         --preview 'bat --color=always {1} --highlight-line {2}' \
@@ -957,13 +1125,13 @@ fzf=$(FZF_DEFAULT_COMMAND="$RG_PREFIX $(printf %q "$INITIAL_QUERY")" \
 )
 
 if [[ -n $fzf ]]; then
-    echo $fzf
-    # cmd=$(echo $fzf | awk -F ':' '{print "emacsclient --eval \"(progn (+workspace/new) (+workspace/switch-to-final) (find-file \\\""$1"\\\") (goto-line "$2") (forward-char "$3") (recenter))\"; " }' )
-    cmd=$(echo $fzf | awk -F ':' '{print "emacsclient --eval \"(progn (find-file \\\""$1"\\\") (goto-line "$2") (forward-char "$3") (recenter))\"; " }' )
-    echo $cmd
-    eval $cmd > /dev/null 2>&1
-    #emacs
-    osascript -e "tell application \"Emacs\" to activate"
+    local file line column rest
+    file=${fzf%%:*}
+    rest=${fzf#*:}
+    line=${rest%%:*}
+    rest=${rest#*:}
+    column=${rest%%:*}
+    user_emacsclient_eval --eval "(progn (find-file \"$file\") (goto-line $line) (forward-char $column) (recenter))" > /dev/null 2>&1
 fi
 }
 #+end_src
@@ -972,7 +1140,7 @@ fi
 **** Github_latest_release_download
 #+begin_src shell
 # github_latest_release_download "Canop/broot"
-tru/github_latest_release_download() {
+user_github_latest_release_download() {
     curl -s "https://api.github.com/repos/$1/releases/latest"  | jq -r ".assets[] | select(.name | contains(\"zip\"|\"gz\")) | .browser_download_url"
 }
 
@@ -1047,30 +1215,38 @@ function prompt_my_fire_dir() {
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 
-# https://unix.stackexchange.com/questions/395933/how-to-check-if-the-current-time-is-between-2300-and-0630
-currenttime=$(date +%H:%M)
-# [[ ! -f $DOTDIR/p10k_lean.zsh ]] || source $DOTDIR/p10k_lean.zsh
-if [[ "$currenttime" > "17:00" ]] || [[ "$currenttime" < "05:30" ]]; then
-    [[ ! -f $DOTDIR/p10k_classic.zsh ]] || source $DOTDIR/p10k_classic.zsh
-else
-    [[ ! -f $DOTDIR/p10k_rainbow.zsh ]] || source $DOTDIR/p10k_rainbow.zsh && POWERLEVEL9K_OS_ICON_BACKGROUND='99'
+if [[ -f $DOTDIR/.p10k.zsh ]]; then
+    source $DOTDIR/.p10k.zsh
+elif [[ -f $DOTDIR/p10k_rainbow.zsh ]]; then
+    source $DOTDIR/p10k_rainbow.zsh
+elif [[ -f $DOTDIR/p10k_classic.zsh ]]; then
+    source $DOTDIR/p10k_classic.zsh
 fi
 
-# typeset -g POWERLEVEL9K_MY_FIRE_DIR_LEFT_SEGMENT_SEPARATOR='\uE0C0'
-# typeset -g POWERLEVEL9K_MY_FIRE_DIR_{LAST,SOLO}_{LEFT_SEGMENT_SEPARATOR,LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL}='\uE0C0'
-typeset -gA my_fire_dir_icons=(
-  "${(b)HOME}"      $'\uF015'
-  "${(b)HOME}/*"    $'\uF07C'
-  "/etc(|/*)"       $'\uF013')
+# Use Unicode separators that render reliably without Nerd Font private glyphs.
+typeset -g POWERLEVEL9K_LEFT_SUBSEGMENT_SEPARATOR='·'
+typeset -g POWERLEVEL9K_RIGHT_SUBSEGMENT_SEPARATOR='·'
+typeset -g POWERLEVEL9K_LEFT_SEGMENT_SEPARATOR='▶'
+typeset -g POWERLEVEL9K_RIGHT_SEGMENT_SEPARATOR='◀'
+typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL='▶'
+typeset -g POWERLEVEL9K_RIGHT_PROMPT_FIRST_SEGMENT_START_SYMBOL='◀'
 
-typeset POWERLEVEL9K_MY_FIRE_DIR_{FIRST,SOLO}_VISUAL_IDENTIFIER_EXPANSION=$'${my_fire_dir_icons[(k)$PWD]:-\uF115}'
+typeset -gA my_fire_dir_icons=(
+  "${(b)HOME}"      '🏠'
+  "${(b)HOME}/*"    '📁'
+  "/etc(|/*)"       '⚙️')
+
+typeset POWERLEVEL9K_MY_FIRE_DIR_{FIRST,SOLO}_VISUAL_IDENTIFIER_EXPANSION='${my_fire_dir_icons[(k)$PWD]:-📂}'
 
 POWERLEVEL9K_SHORTEN_DIR_LENGTH=
 POWERLEVEL9K_SHORTEN_DELIMITER=""
 POWERLEVEL9K_SHORTEN_STRATEGY="truncate_absolute"
 POWERLEVEL9K_OS_ICON_FOREGROUND=232
-#POWERLEVEL9K_OS_ICON_BACKGROUND='99'
-POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🏀'
+POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🌈'
+typeset -g POWERLEVEL9K_VCS_PREFIX='on '
+typeset -g POWERLEVEL9K_VCS_VISUAL_IDENTIFIER_EXPANSION=''
+typeset -g POWERLEVEL9K_VCS_BRANCH_ICON='🌿 '
+typeset -g POWERLEVEL9K_TIME_VISUAL_IDENTIFIER_EXPANSION='🕒'
 #POWERLEVEL9K_DIR_BACKGROUND=99
 unset POWERLEVEL9K_AWS_SHOW_ON_COMMAND
 typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=99
@@ -1127,7 +1303,11 @@ for n ({1..5}) alias -g NH$n=".*(.om[$n])"
 *** Snippets
 #+begin_src shell
 # make snippets executable (interactive shell only)
-[[ -d $SNIPPETS_PATH ]] && chmod -R +x $SNIPPETS_PATH/*
+if [[ -d $SNIPPETS_PATH ]]; then
+    typeset -a snippet_files
+    snippet_files=($SNIPPETS_PATH/*(N))
+    (( $#snippet_files )) && chmod +x $snippet_files
+fi
 #+end_src
 
 *** End File
@@ -1146,9 +1326,39 @@ fi
 #!/bin/sh
 # https://emacs.stackexchange.com/questions/13809/how-do-i-use-emacsclient-as-editor-or-visual
 # https://emacs.stackexchange.com/questions/60339/using-emacsclient-for-visual-raises-end-of-file-during-parsing
-#exec emacsclient -F -c "$@"
-exec /opt/homebrew/bin/emacsclient -F -c "$@"
+
+find_bin() {
+    command -v "$1" 2>/dev/null && return 0
+
+    case "$1" in
+        emacsclient)
+            [ -x /opt/homebrew/bin/emacsclient ] && { printf '%s\n' /opt/homebrew/bin/emacsclient; return 0; }
+            [ -x /usr/local/bin/emacsclient ] && { printf '%s\n' /usr/local/bin/emacsclient; return 0; }
+            ;;
+        emacs)
+            [ -x /opt/homebrew/bin/emacs ] && { printf '%s\n' /opt/homebrew/bin/emacs; return 0; }
+            [ -x /usr/local/bin/emacs ] && { printf '%s\n' /usr/local/bin/emacs; return 0; }
+            ;;
+    esac
+
+    return 1
+}
+
+emacsclient_bin="$(find_bin emacsclient)"
+emacs_bin="$(find_bin emacs || true)"
+
+if [ -n "$emacsclient_bin" ]; then
+    if [ -n "$emacs_bin" ]; then
+        exec "$emacsclient_bin" -F -c -a "$emacs_bin" "$@"
+    fi
+    exec "$emacsclient_bin" -F -c "$@"
+fi
+
+if [ -n "$emacs_bin" ]; then
+    exec "$emacs_bin" "$@"
+fi
+
+printf '%s\n' "Could not find emacsclient or emacs in PATH." >&2
+exit 127
 
 #+end_src
-
-

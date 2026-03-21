@@ -1,5 +1,39 @@
 #!/bin/sh
 # https://emacs.stackexchange.com/questions/13809/how-do-i-use-emacsclient-as-editor-or-visual
 # https://emacs.stackexchange.com/questions/60339/using-emacsclient-for-visual-raises-end-of-file-during-parsing
-#exec emacsclient -F -c "$@"
-exec /opt/homebrew/bin/emacsclient -F -c "$@"
+
+find_bin() {
+    case "$1" in
+        emacsclient)
+            [ -x "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient" ] && { printf '%s\n' "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"; return 0; }
+            [ -x /opt/homebrew/bin/emacsclient ] && { printf '%s\n' /opt/homebrew/bin/emacsclient; return 0; }
+            [ -x /usr/local/bin/emacsclient ] && { printf '%s\n' /usr/local/bin/emacsclient; return 0; }
+            ;;
+        emacs)
+            [ -x "/Applications/Emacs.app/Contents/MacOS/Emacs" ] && { printf '%s\n' "/Applications/Emacs.app/Contents/MacOS/Emacs"; return 0; }
+            [ -x /opt/homebrew/bin/emacs ] && { printf '%s\n' /opt/homebrew/bin/emacs; return 0; }
+            [ -x /usr/local/bin/emacs ] && { printf '%s\n' /usr/local/bin/emacs; return 0; }
+            ;;
+    esac
+
+    command -v "$1" 2>/dev/null && return 0
+
+    return 1
+}
+
+emacsclient_bin="$(find_bin emacsclient)"
+emacs_bin="$(find_bin emacs || true)"
+
+if [ -n "$emacsclient_bin" ]; then
+    if [ -n "$emacs_bin" ]; then
+        exec "$emacsclient_bin" -F -c -a "$emacs_bin" "$@"
+    fi
+    exec "$emacsclient_bin" -F -c "$@"
+fi
+
+if [ -n "$emacs_bin" ]; then
+    exec "$emacs_bin" "$@"
+fi
+
+printf '%s\n' "Could not find emacsclient or emacs in PATH." >&2
+exit 127
