@@ -1,0 +1,8 @@
+#!/bin/zsh
+# hub pr merge num
+[ -z "$GITHUB_TOKEN" ] && export GITHUB_TOKEN=`pass show gh_token`
+pr_list=$(hub pr list | fzf -m | awk '{print $1}' | cut -c 2-)
+for i in `echo ${pr_list}`
+do
+    hub merge `hub pr show -u $i`
+done

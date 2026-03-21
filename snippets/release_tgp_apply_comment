@@ -1,0 +1,53 @@
+#!/bin/zsh
+
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+
+SERVICE=$(pwd)
+APP=$(basename "$SERVICE")
+SERVER=$(basename "$(dirname "$SERVICE")")
+AWS_ENV=$(basename "$(dirname "$(dirname "$SERVICE")")")
+
+RESULT=$(ls -tl result*.txt | head -n 1 | awk '{print $NF}')
+
+
+# remove ansi color
+read -r -d '' detail2 << EOM
+$(cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g')
+EOM
+
+  if echo "$detail2" | grep -n 'Outputs:' >> /dev/null ; then
+        output_line=$(echo "$detail2" | grep -n 'Outputs:' | cut -f1 -d:)
+        line=$(expr $output_line - 1)
+    else
+        line='$'
+    fi
+
+echo "<details><summary><b>Apply</b>:$AWS_ENV/$SERVER/$APP</summary>" >> $HOME/Documents/test/echo.tmp
+echo "\n" >> $HOME/Documents/test/echo.tmp
+echo '```' >> $HOME/Documents/test/echo.tmp
+# cat $RESULT | gsed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | gsed -n "1,${line}p" >> $HOME/Documents/test/echo.tmp
+cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | sed -n "1,${line}p" >> $HOME/Documents/test/echo.tmp
+
+#    cat $PLAN | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' >> $HOME/Documents/test/echo.tmp
+echo "\n" >> $HOME/Documents/test/echo.tmp
+echo '```' >> $HOME/Documents/test/echo.tmp
+echo "</details>" >> $HOME/Documents/test/echo.tmp
+COMMENT=`cat $HOME/Documents/test/echo.tmp`
+rm -rf $HOME/Documents/test/echo.tmp
+cd $UID_TF_MODULES_BASE_PATH/$WORKTREE/uid.terraform-modules
+# pr=$(gh pr list |grep `git rev-parse --abbrev-ref HEAD`|awk '{print $1}')
+pr=2039
+COMMENT_URL=`gh pr comment $pr --body $COMMENT`
+if [ $COMMENT_URL ];then
+   echo "Apply log has been posted to $COMMENT_URL"
+   echo "**Apply**:$AWS_ENV/$SERVER/$APP: $COMMENT_URL" | pbcopy
+fi
+
+   cd $SERVICE

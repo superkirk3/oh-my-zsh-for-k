@@ -1,0 +1,8 @@
+#!/bin/zsh
+# aws ecs enable containerInsights
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+export AWS_REGION=us-west-2
+app=${app}
+name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | select( .name | contains("-'$app'")) | .name'`
+echo $name
+# aws ecs update-cluster-settings --cluster $name --settings name=containerInsights,value=enabled

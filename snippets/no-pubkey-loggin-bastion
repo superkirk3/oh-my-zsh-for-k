@@ -1,0 +1,3 @@
+#!/bin/zsh
+# aws shared bastion ssh
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"` && echo $AWS_PROFILE && ssh root@`aws ec2 describe-instances --filters 'Name=tag:Name,Values=shared-bastion' | jq -r  '.Reservations[].Instances[].InstanceId'`

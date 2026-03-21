@@ -1,0 +1,37 @@
+#!/bin/zsh
+# aws shared bastion forward rds connect
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+
+tmp_LOCAL_PORT=${LOCAL_PORT:-3306}
+export LOCAL_PORT=
+echo -n "Enter LOCAL_PORT [current: $tmp_LOCAL_PORT]: "; read LOCAL_PORT
+export LOCAL_PORT=${LOCAL_PORT:-${tmp_LOCAL_PORT}}
+echo $LOCAL_PORT
+
+echo $AWS_PROFILE
+FZF_RDS=$(aws secretsmanager list-secrets --filters '[{"Key": "all", "Values": ["database"]}]' | jq -r ".SecretList | .[].Name" | fzf)
+if [ -z "$FZF_RDS" ]; then
+    return false
+fi
+RDS=$(aws secretsmanager get-secret-value --secret-id $FZF_RDS | jq -r ".SecretString")
+echo $RDS | jq
+echo $RDS | jq -r ".dbname" | tr -d "\n" | pbcopy; sleep 1
+echo $RDS | jq -r ".host" | tr -d "\n" | pbcopy; sleep 1
+echo $RDS | jq -r ".username" | tr -d "\n" | pbcopy; sleep 1
+echo $RDS | jq -r ".password" | tr -d "\n" | pbcopy; sleep 1
+
+read -r -d '' PROPERTIES  << EOM
+:PROPERTIES:
+:header-args:sql: :engine mysql
+:header-args:sql+: :dbuser `echo $RDS | jq -r ".username" | tr -d "\n"`
+:header-args:sql+: :dbhost 127.0.0.1
+:header-args:sql+: :dbport $LOCAL_PORT
+:header-args:sql+: :database `echo $RDS | jq -r ".dbname" | tr -d "\n"`
+:header-args:sql+: :cmdline "-p'`echo $RDS | jq -r ".password" | tr -d "\n"`'"
+:header-args:sql+: :exports both
+:END:
+EOM
+
+echo $PROPERTIES | pbcopy; sleep 1
+
+ssh -vvv root@$(aws ec2 describe-instances --filters "Name=tag:Name,Values=shared-bastion" | jq -r  ".Reservations[].Instances[].InstanceId") -N -L $LOCAL_PORT:$(echo $RDS | jq -r ".host"):3306

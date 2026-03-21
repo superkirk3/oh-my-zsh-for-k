@@ -1,0 +1,36 @@
+#!/bin/zsh
+# github ghe get pr comment
+    SERVICE=$(basename $(dirname $PWD))/$(basename $PWD)
+    AWS_ENVS=$(basename $(cd ../../ && pwd))
+
+    PLAN=$(ls -tl plan*.txt | head -n 1 | awk '{print $NF}')
+    RESULT=$(ls -tl result*.txt | head -n 1 | awk '{print $NF}')
+
+    # remove ansi color
+    read -r -d '' detail1 << EOM
+$(cat $PLAN | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g')
+EOM
+
+    # remove ansi color
+    read -r -d '' detail2 << EOM
+$(cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g')
+EOM
+
+    if echo "$detail2" | grep -n 'Outputs:' >> /dev/null ; then
+        output_line=$(echo "$detail2" | grep -n 'Outputs:' | cut -f1 -d:)
+        line=$(expr $output_line - 1)
+    else
+        line='$'
+    fi
+
+    echo "<details><summary>$AWS_ENVS/$SERVICE</summary>" > echo.tmp
+    echo "\n" >> echo.tmp
+    echo '```' >> echo.tmp
+    cat $PLAN | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' >> echo.tmp
+    cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | sed -n "1,${line}p" >> echo.tmp
+    echo '```' >> echo.tmp
+    echo "\n" >> echo.tmp
+    echo "</details>" >> echo.tmp
+
+    cat echo.tmp | pbcopy
+    rm -f echo.tmp

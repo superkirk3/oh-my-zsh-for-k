@@ -1,0 +1,47 @@
+# terraform tgapply2 terragrunt apply
+# export TG_SRC=../../../../../../uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -t|--worktree) ARG_WORKTREE="$2"; shift ;;
+    esac
+    shift
+done
+
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+
+export TG_SRC=$UID_TF_MODULES_BASE_PATH/$WORKTREE/uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+
+# echo "0.12.26.2" > .terraform-version
+terragrunt apply --terragrunt-source $TG_SRC plan.out 2>&1 | tee -a `pwd`/result-$(date +"%Y-%m-%d-%H-%M-%S").txt
+
+SERVICE=$(basename $(dirname $PWD))/$(basename $PWD)
+AWS_ENVS=$(basename $(cd ../../ && pwd))
+RESULT=$(ls -tl result*.txt | head -n 1 | awk '{print $NF}')
+    read -r -d '' detail2 << EOM
+$(cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g')
+EOM
+
+    if echo "$detail2" | grep -n 'Outputs:' >> /dev/null ; then
+        output_line=$(echo "$detail2" | grep -n 'Outputs:' | cut -f1 -d:)
+        line=$(expr $output_line - 1)
+    else
+        line='$'
+    fi
+
+    echo "$AWS_ENVS/$SERVICE" > echo.tmp
+    echo "\n" >> echo.tmp
+    cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | sed -n "1,${line}p" >> echo.tmp
+
+    # cat echo.tmp |pbcopy
+
+    rm -f echo.tmp
+# git -C ${DEV_CONFIG_SSH_PATH:-$HOME/Dropbox/Dev/configs/ssh} apply -R uidev.local.patch
+# git clean -e "version" -f
+# rm -f .terraform-version

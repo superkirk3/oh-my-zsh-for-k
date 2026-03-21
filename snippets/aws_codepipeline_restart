@@ -1,0 +1,16 @@
+#!/bin/zsh
+# aws codepipeline execution restart
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+# export AWS_REGION=us-west-2
+
+name=`aws codepipeline list-pipelines | jq -r '.pipelines | .[] | .name' | fzf -m`
+print $name
+echo -n "\nContinue? ( yes/no ) "; read continue
+if [ $continue = "yes" ]; then
+    echo "\nRestarting..."
+    for i in `echo $name`
+    do
+        echo $i
+        echo "aws codepipeline start-pipeline-execution --name $i" | tee /dev/tty | zsh
+    done
+fi

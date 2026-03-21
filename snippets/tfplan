@@ -1,0 +1,7 @@
+#!/bin/zsh
+# terraform review plan
+if [[ $(PWD) =~ ".*github.com/Ubiquiti-UID/uid.repo-privilege.*" ]]; then
+    export GITHUB_APP_PEM_FILE=`pass show ubiquiti/uid/github_app_token`
+    rm -f .terraform.lock.hcl
+fi
+terraform init && terraform plan -out plan.out && terraform show plan.out > .plan-$(date +"%Y-%m-%d-%H-%M").txt

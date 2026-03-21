@@ -1,0 +1,8 @@
+#!/bin/zsh
+# aws waf awscli prd-ubntcom ratelimit
+# ubntcom
+# aws wafv2 get-rate-based-statement-managed-keys --scope=REGIONAL --region=us-west-2 --web-acl-name=prd-ubntcom --web-acl-id=f28c37a1-3760-49a0-aa31-96530bc3477e --rule-name=ratelimit
+# qa
+aws wafv2 get-rate-based-statement-managed-keys --scope=CLOUDFRONT --region=us-east-1 --web-acl-name=qa-api-gw --web-acl-id=8b7dd129-2be4-4342-acf3-6b1703a091ab --rule-name=qa-api-gw-acl-rule
+# dogfood
+aws wafv2 get-rate-based-statement-managed-keys --scope=CLOUDFRONT --region=us-east-1 --web-acl-name=dogfood-api-gw --web-acl-id=5df239b5-794f-45cc-bfd8-96156f07ddf8 --rule-name=dogfood-api-gw-acl-rule

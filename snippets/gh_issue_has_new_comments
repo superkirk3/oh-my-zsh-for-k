@@ -1,0 +1,6 @@
+#!/bin/zsh
+# gh issue list new comments
+GH_COMMENT_EXCLUDE_USER=$(gh api user --jq .login 2>/dev/null || printf %s "$USER") gh issue list --repo "Ubiquiti-UID/uid.devops-pandora" -s open -S "is:issue sort:updated-desc comments:>0 updated:>=$(date -v -1d +'%Y-%m-%d') involves:@me" --json title,url,comments,number \
+  | jq -r '.[]
+          | { title, number, url, new_comment: (.comments | max_by(.createdAt) | select(.author.login!=env.GH_COMMENT_EXCLUDE_USER)) }
+          | "########", "\(.url)", "\u001b[32m\(.title)\u001b[0m", "\(.new_comment.author.login):", " ", "\(.new_comment.body | .[0:200])"'

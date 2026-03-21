@@ -1,0 +1,58 @@
+# tgplan terraform terragrunt plan
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+       # -target) TARGET="-target=$2"; shift ;;
+        -t|--worktree) ARG_WORKTREE="$2";  shift ;;
+    esac
+    shift
+done
+
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+
+export TG_SRC=$UID_TF_MODULES_BASE_PATH/$WORKTREE/uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+# replace remote git to local git
+export remote_git='ssh://git@github.com:Ubiquiti-UID/uid.devops.terraform.git'
+export local_git=$devops_terraform_local_git
+echo $local_git
+
+# cd ../../../../../../uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+cd $TG_SRC
+#git grep -rli 'git@github.com:Ubiquiti-UID/uid.devops.terraform.git' * | xargs sed -i '' 's|ssh://git@github.com:Ubiquiti-UID/uid.devops.terraform.git|${LOCAL_WORK_HOME:-$HOME/work_home}/git/mirror/uid-devops-modules|g'
+#git grep -rli $remote_git * | xargs sed -i '' "s|$remote_git|$local_git|g"
+cd -
+# end replace
+# git -C '${DEV_CONFIG_SSH_PATH:-$HOME/Dropbox/Dev/configs/ssh}' apply uidev.local.patch
+rg 'git::ssh://git@git.uidev.tools/devops/devops.terraform.git' -l $TG_SRC/* | xargs gsed -i 's|git::ssh://git@git.uidev.tools/devops/devops.terraform.git|git::${LOCAL_WORK_HOME:-$HOME/work_home}/uid.devops.terraform.git|g'
+rg 'git::ssh://git@github.com/Ubiquiti-UID' -l $TG_SRC/* | xargs gsed -i "s|ssh://git@github.com/Ubiquiti-UID|${LOCAL_WORK_HOME:-$HOME/work_home}|g"
+[ ! -f .terraform-version ] && echo "1.4.6" > .terraform-version
+[ ! -f .terragrunt-version ] && echo "0.39.1" > .terragrunt-version
+# terragrunt -v
+export TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true
+if [ -d .terragrunt-cache ]; then rm -rf .terragrunt-cache; fi
+rm -f .terraform.lock.hcl
+
+echo "TG_SRC: $TG_SRC"
+terragrunt plan --terragrunt-source $TG_SRC -target module.db_alarms  -out `pwd`/plan.out 2>&1 && terragrunt show --terragrunt-source $TG_SRC `pwd`/plan.out | tee -a `pwd`/plan-`date +"%Y-%m-%d-%H-%M-%S"`.txt &&  terragrunt show --json --terragrunt-source $TG_SRC `pwd`/plan.out 2>/dev/null | jq -r '([.resource_changes[].change.actions?]|flatten)|{"create":(map(select(.=="create"))|length),"update":(map(select(.=="update"))|length),"delete":(map(select(.=="delete"))|length)}' | tee CHANGES.JSON.txt
+
+rm -f .terraform-version
+# replace back
+# cd ../../../../../../uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+cd $TG_SRC
+rg "${LOCAL_WORK_HOME:-$HOME/work_home}" -l $TG_SRC/* | xargs gsed -i "s|${LOCAL_WORK_HOME:-$HOME/work_home}|ssh://git@github.com/Ubiquiti-UID|g"
+#git grep -rli $local_git * | xargs sed -i '' "s|$local_git|$remote_git|g"
+cd -
+# end replace
+# echo -n "Please confirm if upload tgplan log(yes/no): "
+#     UPLOAD=`echo -e "yes\nno" | fzf -m --no-preview`
+#     echo $UPLOAD
+#     if [[ $UPLOAD == "yes" ]];then
+#        release_tgp_review_comment
+#     fi

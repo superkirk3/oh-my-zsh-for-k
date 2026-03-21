@@ -1,0 +1,53 @@
+#!/bin/zsh
+# aws shared bastion forward rds connect multiple
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+
+tmp_LOCAL_PORT=${LOCAL_PORT:-3306}
+export LOCAL_PORT=
+echo -n "Enter LOCAL_PORT [current: $tmp_LOCAL_PORT]: "; read LOCAL_PORT
+export LOCAL_PORT=${LOCAL_PORT:-${tmp_LOCAL_PORT}}
+
+FZF_RDS=$(aws secretsmanager list-secrets --filters '[{"Key": "all", "Values": ["database"]}]' | jq -r ".SecretList | .[].Name" | fzf --multi)
+if [ -z "$FZF_RDS" ]; then
+    return false
+fi
+
+echo "" > rds.tmp
+SSH_COMMAND=""
+echo "Port begins at:$LOCAL_PORT, env:$AWS_PROFILE"
+echo "Selected:"
+echo $FZF_RDS
+
+for i in `echo $FZF_RDS`; do
+RDS=$(aws secretsmanager get-secret-value --secret-id $i | jq -r ".SecretString")
+echo $RDS | jq
+read -r -d '' PROPERTIES  << EOM
+
+**** `echo $RDS | jq -r ".dbname" | tr -d "\n"`
+:PROPERTIES:
+:header-args:sql: :engine `echo $RDS | jq -r ".engine" | tr -d "\n"`
+:header-args:sql+: :dbuser `echo $RDS | jq -r ".username" | tr -d "\n"`
+:header-args:sql+: :dbhost 127.0.0.1
+:header-args:sql+: :dbport $LOCAL_PORT
+:header-args:sql+: :database `echo $RDS | jq -r ".dbname" | tr -d "\n"`
+:header-args:sql+: :cmdline "-p'`echo $RDS | jq -r ".password" | tr -d "\n"`'"
+:header-args:sql+: :exports both
+:END:
+
+#+begin_src sql
+
+#+end_src
+
+EOM
+
+echo $PROPERTIES >> rds.tmp
+SSH_COMMAND="-L $LOCAL_PORT:$(echo $RDS | jq -r ".host"):$(echo $RDS | jq -r ".port") ${SSH_COMMAND}"
+let LOCAL_PORT=$LOCAL_PORT+1
+
+done
+
+cat rds.tmp | pbcopy; sleep 1
+
+rm -f rds.tmp
+
+ssh -vvv root@$(aws ec2 describe-instances --filters "Name=tag:Name,Values=shared-bastion" | jq -r  ".Reservations[].Instances[].InstanceId") -N `echo $SSH_COMMAND`

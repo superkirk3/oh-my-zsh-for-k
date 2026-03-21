@@ -38,6 +38,9 @@ ZSH=$HOME/.oh-my-zsh
 # ZSH_THEME="spaceship"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
+# Keep the oh-my-zsh tmux plugin on the local tmux config file.
+export ZSH_TMUX_CONFIG="${ZSH_TMUX_CONFIG:-$HOME/.tmux.conf.local}"
+
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
@@ -221,9 +224,10 @@ else
 fi
 
 # fzf-tab
+typeset -g FZF_COLOR_OPTS='--color=fg:#e6edf3,bg:-1,hl:#ffd866,fg+:#ffffff,bg+:#334155,hl+:#ffe082,info:#8ab4f8,prompt:#e6edf3,pointer:#8ab4f8,marker:#7ee787,spinner:#8ab4f8,header:#c9d1d9,query:#f8fafc,border:#5c6370'
 zstyle ':fzf-tab:complete:_zlua:*' query-string input
 zstyle ':fzf-tab:complete:kill:argument-rest' fzf-preview 'ps --pid=$word -o cmd --no-headers -w -w'
-zstyle ':fzf-tab:complete:kill:argument-rest' fzf-flags '--preview-window=down:3:wrap'
+zstyle ':fzf-tab:complete:kill:argument-rest' fzf-flags ${(z)FZF_COLOR_OPTS} '--preview-window=down:3:wrap'
 zstyle ':fzf-tab:complete:kill:*' popup-pad 0 3
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'exa -1 --color=always $realpath'
 zstyle ':fzf-tab:complete:cd:*' popup-pad 30 0
@@ -231,9 +235,9 @@ zstyle ':completion:*:git-checkout:*' sort false
 zstyle ':completion:*:exa' file-sort modification
 zstyle ':completion:*:exa' sort false
 zstyle -d ':completion:*' format
-zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*:descriptions' format '%F{111}[%d]%f'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-zstyle ":fzf-tab:*" fzf-flags --color=bg+:99
+zstyle ":fzf-tab:*" fzf-flags ${(z)FZF_COLOR_OPTS}
 if (( $+commands[tmux] )); then
   zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup # tmux 3.2
 else
@@ -561,6 +565,14 @@ vterm_printf(){
     fi
 }
 
+user_set_cursor_color() {
+    local cursor_color
+    cursor_color="${1:-${TERMINAL_CURSOR_COLOR:-#e6e6e6}}"
+    vterm_printf "12;${cursor_color}"
+}
+
+user_set_cursor_color
+
 
 # notmuch seach
 # https://emacs-china.org/t/topic/305/73?u=tru
@@ -692,12 +704,13 @@ bindkey '^X^R' fzf-history-widget-accept
 bindkey '^[g'  fzf-cd-widget
 
 # export FZF_DEFAULT_OPTS='--no-height --no-reverse --bind alt-a:select-all,alt-A:deselect-all,ctrl-t:toggle-all'
-export FZF_DEFAULT_OPTS='--no-height --no-reverse
+export FZF_DEFAULT_OPTS="$FZF_COLOR_OPTS
+       --no-height --no-reverse
        --bind alt-a:toggle-all
        --bind ctrl-t:toggle-preview
        --bind=ctrl-alt-j:preview-down
        --bind=ctrl-alt-k:preview-up
-'
+"
 # Using highlight (http://www.andre-simon.de/doku/highlight/en/highlight.html)
 export FZF_CTRL_T_OPTS="--preview '(highlight -O ansi -l {} 2> /dev/null || cat {} || tree -C {}) 2> /dev/null | head -200'"
 # Full command on preview window

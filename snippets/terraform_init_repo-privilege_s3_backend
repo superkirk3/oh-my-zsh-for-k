@@ -1,0 +1,8 @@
+#!/bin/zsh
+# tf terraform init repo-privilege s3 backend
+terraform init \
+-backend-config="bucket=302341155122-deploy" \
+-backend-config="profile=admin@uid-core-dogfooding" \
+-backend-config="key=repo-privilege/$(basename $PWD)/terraform.tfstate" \
+-backend-config="region=us-west-2" \
+-backend-config="shared_credentials_file=~/.aws/credentials"

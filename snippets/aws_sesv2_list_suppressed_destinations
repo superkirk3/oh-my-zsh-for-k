@@ -1,0 +1,42 @@
+#!/bin/zsh
+# aws sesv2 list suppressed emails
+function ses_search_email() {
+    AWS_COMMAND="aws sesv2 list-suppressed-destinations"
+    unset NEXT_TOKEN
+    SUPPRESSION_LIST=""
+
+    function parse_output() {
+    if [ ! -z "$cli_output" ]; then
+        # The output parsing below also needs to be adapted as needed.
+        SUPPRESSION_LIST+=`echo $cli_output | jq -r '.SuppressedDestinationSummaries[].EmailAddress'`
+        NEXT_TOKEN=$(echo $cli_output | jq -r ".NextToken")
+    fi
+    }
+
+    # The command is run and output parsed in the below statements.
+    cli_output=`eval $AWS_COMMAND`
+    parse_output
+    # echo $SUPPRESSION_LIST
+
+    # The below while loop runs until either the command errors due to throttling or
+    # comes back with a pagination token.  In the case of being throttled / throwing
+    # an error, it sleeps for three seconds and then tries again.
+    while [[ "$NEXT_TOKEN" != "null" ]]; do
+    if [[ "$NEXT_TOKEN" == "null" ]] || [[ -z "$NEXT_TOKEN" ]] ; then
+        # echo "now running: $AWS_COMMAND "
+        sleep 3
+        cli_output=`eval $AWS_COMMAND`
+        parse_output
+    else
+        # echo "now paginating: $AWS_COMMAND --next-token $NEXT_TOKEN"
+        sleep 3
+        cli_output=`eval $AWS_COMMAND --next-token $NEXT_TOKEN`
+        parse_output
+    fi
+    done  #pagination loop
+
+    echo $SUPPRESSION_LIST | tr " " "\n" | fzf
+}
+
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+aws sesv2 get-suppressed-destination --email-address  "`ses_search_email`"

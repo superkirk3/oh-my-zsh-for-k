@@ -1,0 +1,45 @@
+#!/bin/zsh
+# aws codepipeline list-pipeline-executions status
+# tmp_profile=${AWS_PROFILE}
+# tmp_region=${AWS_REGION}
+# export AWS_PROFILE=
+# export AWS_REGION=
+# echo -n "Enter AWS REGION [current: $tmp_region]: "; read AWS_REGION
+# export AWS_REGION=${AWS_REGION:-${tmp_region}}
+
+# echo -n "Enter AWS PROFILE NAME [current: $tmp_profile]: "; read AWS_PROFILE
+# export AWS_PROFILE=${AWS_PROFILE:-${tmp_profile}}
+source $HOME/.oh-my-zsh/custom/plugins/h/h.sh
+
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+
+export H_COLORS_BG="underline bold green"
+export H_COLORS_FG="bold black on_red","bold black on_blue"
+list=$(aws codepipeline list-pipelines | jq -r '.pipelines | .[] | .name' | fzf -m)
+rm -f /tmp/aws_codepipeline_state.tmp
+while [ true ]
+do
+    j=0
+    for name in `echo -n $list`
+    do
+        # zsh/bash for loop issue
+        # https://stackoverflow.com/questions/23157613/how-to-iterate-through-string-one-word-at-a-time-in-zsh
+        if [[ ! -o shwordsplit ]]; then
+            old_shwordsplit='no'
+            setopt shwordsplit
+        fi
+
+        # aws codepipeline list-pipeline-executions --pipeline-name $name --max-items 1 | jq -r '(["\(.pipelineExecutionSummaries | .[] | .status)","\(.pipelineExecutionSummaries | .[] | .lastUpdateTime)", "\('\"$name\"')"] | @tsv)'
+        aws codepipeline get-pipeline-state --name $name | jq -r '{ pipelineName,
+                         stageName: (.stageStates | map(.stageName, .latestExecution.status)),
+                         lastUpdate: (.stageStates |  map(.actionStates | .[] | .latestExecution.lastStatusChange) | max)}
+                         | flatten | join(", ") ' | h -i 'cancelled|failed|stopped|stopping' 'inprogress' "succeeded|$(date -v -0d +"%Y-%m-%d").*" | tee -a /tmp/aws_codepipeline_state.tmp
+        # Cancelled | InProgress | Failed | Stopped | Stopping | Succeeded
+        ((j+=1))
+        if [ $old_shwordsplit = 'no' ];then
+            unsetopt shwordsplit
+        fi
+    done
+    for i in $(seq 1 $j); do tput cuu1; done
+    sleep 5
+done

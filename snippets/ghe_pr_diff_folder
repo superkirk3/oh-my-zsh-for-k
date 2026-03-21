@@ -1,0 +1,3 @@
+#!/bin/zsh
+# ghe pr diff folder
+gh pr diff ${PR} --repo ubiquiti-uid/uid.terraform-modules | grep 'diff' | awk -F 'b/' '{print $2}' | cut -d '/' -f 1,2 | sort | uniq | grep -v '\.'

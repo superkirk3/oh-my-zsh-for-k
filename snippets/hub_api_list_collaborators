@@ -1,0 +1,4 @@
+#!/bin/zsh
+# hub api list collaborators
+[ -z "$GITHUB_TOKEN" ] && export GITHUB_TOKEN=`pass show gh_token`
+hub api repos/:user/:repo/collaborators | jq ".[].login"

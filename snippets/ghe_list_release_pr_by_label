@@ -1,0 +1,42 @@
+#!/bin/zsh
+# ghe github release pr filter label
+ unset LABEL
+LABEL=$(gh api repos/{owner}/{repo}/labels --paginate --jq '.[] | .name' | fzf)
+if [ -z "$LABEL" ]; then
+    return false
+fi
+echo ${LABEL}
+
+JSON=$(curl -q -s -H "Authorization: token `pass show ghe_token`" -H "Accept: application/vnd.github.v3+json" "https://git.uidev.tools/api/v3/search/issues?q=org:unifi+repo:uid.terraform-module+label:$LABEL+is:pr&order=asc&sort=created")
+{
+echo "## no break change"
+# https://unix.stackexchange.com/questions/588458/how-to-remove-last-character-with-slash-in-unix
+echo -n $JSON | sed 's|\\[^\]*$||' | tr '\r\n' ' ' | jq -r '.items[] | select( .labels | .[] | .name | contains("no-break-change")) | (["- [ ]" , "#\(.number)","\(.title)"] | @tsv)'
+echo "#### changed folders:"
+NO_BREAK=$(echo -n $JSON | sed 's|\\[^\]*$||' | tr '\r\n' ' ' | jq -r '.items[] | select( .labels | .[] | .name | contains("no-break-change")) | .number')
+for i in `echo -n $NO_BREAK`
+do
+    echo -n "<details><summary>#$i Changed folders:</summary>"
+    echo -n "\n\n"
+    echo -n '```\n'
+    curl -s -q -H "Authorization: token `pass show ghe_token`" -H "Accept: application/vnd.github.v3.diff" https://git.uidev.tools/api/v3/repos/ubiquiti-uid/uid.terraform-modules/pulls/$i | grep 'diff' | awk -F 'b/' '{print $2}' | cut -d '/' -f 1,2 | sort | uniq
+    echo -n '\n```'
+    echo -n "\n\n"
+    echo -n "</details>\n\n"
+done
+
+echo "## has break change"
+echo -n $JSON | sed 's|\\[^\]*$||' | tr '\r\n' ' ' | jq -r '.items[] | select( .labels | .[] | .name | contains("has-break-change")) | (["- [ ]", "#\(.number)","\(.title)"] | @tsv)'
+echo "#### changed folders:"
+HAS_BREAK=$(echo -n $JSON | sed 's|\\[^\]*$||' | tr '\r\n' ' ' | jq -r '.items[] | select( .labels | .[] | .name | contains("has-break-change")) | .number')
+for i in `echo -n $HAS_BREAK`
+do
+    echo -n "<details><summary>#$i Changed folders:</summary>"
+    echo -n "\n\n"
+    echo -n '```\n'
+    curl -s -q -H "Authorization: token `pass show ghe_token`" -H "Accept: application/vnd.github.v3.diff" https://git.uidev.tools/api/v3/repos/ubiquiti-uid/uid.terraform-modules/pulls/$i | grep 'diff' | awk -F 'b/' '{print $2}' | cut -d '/' -f 1,2 | sort | uniq
+    echo -n '\n```'
+    echo -n "\n\n"
+    echo -n "</details>\n\n"
+done
+} | pbcopy

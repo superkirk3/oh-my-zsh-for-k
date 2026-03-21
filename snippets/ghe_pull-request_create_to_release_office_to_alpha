@@ -1,0 +1,17 @@
+#!/bin/zsh
+# ghe create pull request pr release df to alpha
+ cd ~github.com/Ubiquiti-UID/PRs/`date -v +0d +'%Y-%m-%d'`
+for dir in `cat repo.txt`
+do
+    echo "----------- $dir ----------------"
+    DAY2=`date -v +2d +'%Y-%m-%d'`
+    gh api -XPOST repos/ubiquiti-uid/$dir/pulls -f head=release-df -f base=release-ga-cell1 -f title="Release dogfood to GA (Alpha) - $DAY2" | jq -r '.html_url'
+
+    # curl -H "Authorization: token $(pass show ghe_token)" \
+    #     -X POST \
+    #     -H "Accept: application/vnd.github.v3+json" \
+    #     https://git.uidev.tools/api/v3/repos/ubiquiti-uid/$dir/pulls \
+    #     -d "{\"head\":\"release-df\",\"base\":\"release-ga-cell1\", \"title\":\"Release dogfood to GA (Alpha) - $DAY2\"}"  | jq -r '.html_url'
+
+
+done | tee -a `pwd`/result-$(date +"%Y-%m-%d-%H-%M-%S").txt

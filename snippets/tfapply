@@ -1,0 +1,6 @@
+#!/bin/zsh
+# terraform review apply
+if [[ $(PWD) =~ ".*github.com/Ubiquiti-UID/uid.repo-privilege.*" ]]; then
+    export GITHUB_APP_PEM_FILE=`pass show ubiquiti/uid/github_app_token`
+fi
+terraform apply plan.out 2>&1 | tee -a .result-$(date +"%Y-%m-%d-%H-%M").txt

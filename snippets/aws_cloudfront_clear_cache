@@ -1,0 +1,3 @@
+#!/bin/zsh
+# aws cloudfront cache
+aws cloudfront create-invalidation --distribution-id=${distributionid} --paths "/${path}*"

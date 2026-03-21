@@ -1,0 +1,7 @@
+#!/bin/zsh
+# terraform tgplan terragrunt plan
+ export TG_SRC=../../../../../../product-uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+ git -C '$DEV_CONFIG_PATH/ssh' apply uidev.local.patch
+ echo "0.12.26.2" > .terraform-version && rm -rf .terragrunt-cache
+ # terragrunt plan --terragrunt-source $TG_SRC -out `pwd`/plan.out 2>&1 && terragrunt show --terragrunt-source $TG_SRC `pwd`/plan.out | tee -a `pwd`/plan-`date +"%Y-%m-%d-%H-%M-%S"`.txt
+ terragrunt plan -var-file=`pwd`/../whitelist.tfvars --terragrunt-source $TG_SRC -out `pwd`/plan.out 2>&1 && terragrunt show --terragrunt-source $TG_SRC `pwd`/plan.out | tee -a `pwd`/plan-`date +"%Y-%m-%d-%H-%M-%S"`.txt

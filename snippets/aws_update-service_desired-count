@@ -1,0 +1,26 @@
+#!/bin/zsh
+# aws ecs update service desired count
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+echo $AWS_PROFILE
+# export AWS_REGION=us-west-2
+
+#app=${app}
+#name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | select( .name | contains("-'$app'")) | .name'`
+#name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | .name' | fzf -m -e`
+name=`aws ecs list-clusters | jq -r '.clusterArns | .[]' | awk -F ':' '{print $6}' | cut -d'/' -f 2 | fzf -m -e`
+ecs="name\tdesiredCount\tpendingCount\trunningCount\n"
+for i in `echo $name`; do
+    ecs+=`aws ecs describe-services --cluster $i --services $i | jq -r '(.services | .[] | { serviceName, desiredCount: (.desiredCount), pendingCount: (.pendingCount), runningCount: (.runningCount) } | flatten) | @tsv'`"\n"
+done
+echo $ecs | column -s $'\t' -t
+echo -n "\nContinue? ( yes/no ) "; read continue
+if [ $continue = "yes" ]; then
+    echo "\nContinue...\n"
+    echo -n "\nHow Many Desired Count Number: "; read num
+    if [ -n $num ]; then
+        for i in `echo $name`
+        do
+            aws ecs update-service --cluster $i --service $i --desired-count $num | jq -r '.service | { serviceName, desiredCount: (.desiredCount), pendingCount: (.pendingCount), runningCount: (.runningCount) }'
+        done
+    fi
+fi

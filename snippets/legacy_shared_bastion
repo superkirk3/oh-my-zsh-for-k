@@ -1,0 +1,3 @@
+#!/bin/zsh
+# legacy shared bastion
+ssh -NL localhost:3333:prd-vlognowapi.cofgz3dkwy4s.us-west-2.rds.amazonaws.com:3306 tru.zhou@54.190.180.174

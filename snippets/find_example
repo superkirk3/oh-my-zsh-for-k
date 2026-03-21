@@ -1,0 +1,4 @@
+#!/bin/zsh
+# find example not-path
+# find . -type f \( -iname "*.tf"  \) -not -path "./modules/*" -not -path "./test*" -not -path "./collaborators*" -exec grep --files-without-match 'frank' \{\} +
+find . -type f \( -iname "${name}"  \) -not -path "${path}*" -exec grep --files-without-match '${match}' \{\} +

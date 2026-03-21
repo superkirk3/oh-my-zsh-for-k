@@ -1,0 +1,26 @@
+#!/bin/zsh
+# ghe post hub api pr issue comment add label
+# hub api repos/{owner}/{repo}/issues/${id}/comments -f body="${ThisIsMyComment}" | jq -r '.html_url'
+# hub api repos/ubiquiti-uid/uid.terraform-modules/issues/850/comments -f body="$comments" | jq -r '.html_url'
+tmp_PR=${PR}
+export PR=
+echo -n "Enter PR num [current: $tmp_PR]: "; read PR
+export PR=${PR:-${tmp_PR}}
+
+chmod +x $snippets_dir/get_ghe_pr_comment_without_paste
+$snippets_dir/get_ghe_pr_comment_without_paste
+pwd
+#git -C '$DEV_CONFIG_PATH/ssh' apply -R uidev.local.patch || true
+comments=`cat echo.tmp`
+gh api repos/ubiquiti-uid/uid.terraform-modules/issues/$PR/comments -f body="$comments" | jq -r '.html_url'
+echo ""
+
+tmp_PR=${PR}
+export PR=
+echo -n "Enter PR num [current: $tmp_PR]: "; read PR
+export PR=${PR:-${tmp_PR}}
+label=$(gh api repos/{owner}/uid.terraform-modules/labels --paginate --jq '.[] | .name' | fzf)
+if [ -n "$label" ]; then
+    echo $label
+    gh pr edit $PR --repo ubiquiti-uid/uid.terraform-modules --add-label $label
+fi

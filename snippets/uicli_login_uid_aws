@@ -1,0 +1,3 @@
+#!/bin/zsh
+# uicli aws login
+uicli aws `cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"` login

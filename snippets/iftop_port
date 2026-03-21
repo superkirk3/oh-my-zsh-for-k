@@ -1,0 +1,3 @@
+#!/bin/zsh
+# iftop port
+iftop -i ens1f1 -PnN -f "port 1234"

@@ -1,0 +1,18 @@
+#!/bin/zsh
+# letsencrypt certbot ssl
+unset domain
+echo -n "Enter your domain here [tru.dev]:"; read domain
+echo ${domain:-tru.dev}
+pass show cloudflare > cf.ini
+docker run -i --rm --name certbot -v `pwd`/ssl:/etc/letsencrypt -v \
+      `pwd`/cf.ini:/home/ssl/dns_api/cf.ini \
+      certbot/dns-cloudflare:v1.14.0 certonly \
+      --force-renewal \
+      --register-unsafely-without-email \
+      --agree-tos  --preferred-challenges dns \
+      --server https://acme-v02.api.letsencrypt.org/directory \
+      --dns-cloudflare \
+      --dns-cloudflare-credentials /home/ssl/dns_api/cf.ini \
+      --dns-cloudflare-propagation-seconds 30 \
+      -d $domain -d "*.$domain"
+rm -f cf.ini

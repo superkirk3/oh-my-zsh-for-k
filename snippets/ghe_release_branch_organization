@@ -1,0 +1,163 @@
+#!/bin/zsh
+# ghe release branch organization aws codepipeline sha hash
+# REPO='uid.workflow'
+# export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+
+# set -e
+setopt shwordsplit
+
+dir="/tmp/commit_id"
+if [[ -d "$dir" ]];then
+  rm -rf $dir
+fi
+mkdir -p $dir
+
+source ghe_get_commit_id_from_aws_codepipeline_zip_file
+
+cat $dir/$service/hook.json | jq -r --arg service "$service" '(.head_commit.id) as $id | (.repository.name ) as $name             | $name+", "+$service+", "+$id ' > $dir/repo_tmp.csv
+
+CSV_FILE="$dir/repo_tmp.csv"
+echo $AWS_PROFILE
+
+REPOS=`awk -F', ' '{print $1}' $CSV_FILE`
+[ -z "$REPOS" ] && return false
+TARGET_BRANCH=`gh api -XGET "repos/ubiquiti-uid/uid.config-s3/branches" --paginate | jq -r '.[] | .name' | fzf`
+[ -z "$TARGET_BRANCH" ] && return false
+
+for REPO in $REPOS; do
+    echo "\n\n"
+    echo "\e[0;33m#########################"
+    echo "# $REPO"
+    echo "#########################\e[0m"
+
+    BASE_SHA=`awk -F', ' -v REPO="$REPO" '$1 == REPO { print $3; exit }' $CSV_FILE`
+
+    echo "gh api -XGET repos/ubiquiti-uid/$REPO/git/ref/heads/$TARGET_BRANCH --jq '.object.sha'"
+    CREATE_BRANCH=no
+    TARGET_BRANCH_SHA=`gh api -XGET repos/ubiquiti-uid/$REPO/git/ref/heads/$TARGET_BRANCH --jq '.object.sha'` > /dev/null 2>&1 || CREATE_BRANCH=yes
+
+    if [[ $BASE_SHA == $TARGET_BRANCH_SHA ]]; then
+        echo "codepipeline commit id = $TARGET_BRANCH commit id"
+        continue
+    fi
+
+    # stop hooks
+    echo "\e[0;32m"
+    echo "0. ------ disable webhooks"
+    echo "\e[0m"
+    HOOK_IDS=$(gh api -XGET repos/ubiquiti-uid/$REPO/hooks | jq -r '.[] | .id')
+    echo $HOOK_IDS
+    for HOOK_ID in $HOOK_IDS; do
+        echo "gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=false --jq '{ id, active }'"
+        gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=false --jq '{ id, active }'
+    done
+    echo ""
+
+    # Create first new branch if needed
+    if [[ $CREATE_BRANCH == 'yes' ]]; then
+        echo "\e[0;32m"
+        echo "0.5 ------ Create first new branch if needed"
+        echo "\e[0m"
+
+        cmd="gh api -XPOST \"repos/ubiquiti-uid/$REPO/git/refs\" -f ref=\"refs/heads/$TARGET_BRANCH\" -f sha=$BASE_SHA"
+        echo $cmd
+        eval $cmd
+
+        echo "\e[0;32m7. ------ Enable webhooks \e[0m"
+        HOOK_IDS=$(gh api -XGET repos/ubiquiti-uid/$REPO/hooks | jq -r '.[] | .id')
+        echo $HOOK_IDS
+        for HOOK_ID in $HOOK_IDS; do
+            gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=true --jq '{ id, active }'
+        done
+        echo "------ $REPO END ------"
+
+        continue
+    fi
+
+    echo ""
+
+    echo "\e[1;32m"
+    echo "1. ------ backup commit id from codepipeline s3 zip\e[0m"
+
+    TAGS=`gh api -XGET "repos/ubiquiti-uid/$REPO/tags"`
+
+    if [[ $(echo $TAGS | jq -c '.[] | select(.commit.sha | contains("'$BASE_SHA'")) |(length as $arraylen|$arraylen)') > 0 ]]; then
+        TAG_NAME=`echo $TAGS | jq -r '.[] | select(.commit.sha | contains("'$BASE_SHA'")) | .name'`
+        echo "$TAG_NAME = $BASE_SHA"
+    else
+        echo ""
+        cmd="gh api -XPOST repos/ubiquiti-uid/$REPO/git/refs -f ref=refs/heads/$TARGET_BRANCH-codepipeline-$(date +"%Y-%m-%d") -f sha=$BASE_SHA"
+        echo $cmd
+        eval $cmd
+    fi
+    echo ""
+
+    # tag relese-ga
+    echo "\e[0;32m"
+    echo "2. ------ backup old branch as tag \e[0m"
+
+    TARGET_BRANCH_SHA=`gh api -XGET repos/ubiquiti-uid/$REPO/git/ref/heads/$TARGET_BRANCH --jq '.object.sha'` > /dev/null 2>&1
+    if [[ $? = 0 ]];then
+        echo ""
+        cmd="gh api -XPOST repos/ubiquiti-uid/$REPO/git/refs -f ref=refs/heads/$TARGET_BRANCH-old-$(date +"%Y-%m-%d") -f sha=$TARGET_BRANCH_SHA"
+        echo $cmd
+        eval $cmd || true
+    else
+        echo "$REPO doesn't have $TARGET_BRANCH"
+    fi
+
+    echo ""
+
+    # delete release-ga
+    echo "\e[0;32m3. ------ Allow delete $TARGET_BRANCH \e[0m"
+
+    GHINPUT="{
+      \"required_status_checks\": null,
+      \"enforce_admins\": true,
+      \"required_pull_request_reviews\": {
+        \"dismissal_restrictions\": {},
+        \"dismiss_stale_reviews\": false,
+        \"require_code_owner_reviews\": false,
+        \"required_approving_review_count\": 1
+      },
+      \"restrictions\": {
+        \"users\": `gh api -XGET "repos/ubiquiti-uid/$REPO/branches/$TARGET_BRANCH/protection" --jq '.restrictions.users | map(.login)'`,
+        \"teams\": []
+      },
+      \"allow_deletions\": ALLOWDELETIONS
+    }"
+    # allow_deletions: true
+    echo $GHINPUT | sed 's#ALLOWDELETIONS#true#'| gh api -H Accept:application/vnd.github.luke-cage-preview+json -XPUT "repos/ubiquiti-uid/$REPO/branches/$TARGET_BRANCH/protection" --input - | jq -r '{ url, allow_deletions: (.allow_deletions | .enabled)  }'
+
+    # delete
+    echo "\e[0;32m4. ------ Deleting $TARGET_BRANCH \e[0m"
+    cmd="gh api -XDELETE \"repos/ubiquiti-uid/$REPO/git/refs/heads/$TARGET_BRANCH\" -i"
+    echo $cmd
+    eval $cmd
+    if [[ $? != 0 ]];then
+        eval $cmd
+    fi
+    echo ""
+
+    # new release-ga from release-df
+    echo "\e[0;32m5. ------ Creating new $TARGET_BRANCH branch base on $BASE_BRANCH \e[0m"
+
+    cmd="gh api -XPOST \"repos/ubiquiti-uid/$REPO/git/refs\" -f ref=\"refs/heads/$TARGET_BRANCH\" -f sha=$BASE_SHA"
+    echo $cmd
+    eval $cmd
+    echo ""
+
+    # allow_deletions: false (can only update the protection rules when branch is created)
+    echo "\e[0;32m6. ------ Enable branch deletion protection \e[0m"
+    echo $GHINPUT | sed 's#ALLOWDELETIONS#false#'| gh api -H Accept:application/vnd.github.luke-cage-preview+json -XPUT "repos/ubiquiti-uid/$REPO/branches/$TARGET_BRANCH/protection" --input - | jq -r '{ url, allow_deletions: (.allow_deletions | .enabled)  }'
+
+    # start hooks
+    echo "\e[0;32m7. ------ Enable webhooks \e[0m"
+    HOOK_IDS=$(gh api -XGET repos/ubiquiti-uid/$REPO/hooks | jq -r '.[] | .id')
+    echo $HOOK_IDS
+    for HOOK_ID in $HOOK_IDS; do
+        gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=true --jq '{ id, active }'
+    done
+    echo "------ $REPO END ------"
+
+done

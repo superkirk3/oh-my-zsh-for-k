@@ -1,0 +1,3 @@
+#!/bin/zsh
+# gitea docker-compose up
+ttab -a iTerm2 -G -d $MY_DOCKER_PATH/gitea 'docker-compose up'

@@ -1,0 +1,4 @@
+#!/bin/zsh
+# git diff name-only
+base=${base}; head=${head}; diff1=${base:-alpha}; diff2=${head:-dogfood}
+git diff --name-only origin/${diff1} origin/${diff2} | cut -d '/' -f 1,2 | sort | uniq

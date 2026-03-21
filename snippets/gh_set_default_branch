@@ -1,0 +1,3 @@
+#!/bin/zsh
+# gh set default branch
+REPO=`gh api -XGET "orgs/ubiquiti-uid/repos" --paginate | jq -r '.[] | .name' | fzf` && echo "gh repo edit ubiquiti-uid/$REPO --default-branch `gh api -XGET --paginate "repos/ubiquiti-uid/$REPO/branches" | jq -r '.[] | .name' | fzf`" | tee /dev/tty | zsh

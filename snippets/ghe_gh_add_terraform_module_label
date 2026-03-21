@@ -1,0 +1,11 @@
+#!/bin/zsh
+# ghe gh api add terraform module label
+tmp_PR=${PR}
+export PR=
+echo -n "Enter PR num [current: $tmp_PR]: "; read PR
+export PR=${PR:-${tmp_PR}}
+label=$(gh api repos/{owner}/uid.terraform-modules/labels --paginate --jq '.[] | .name' | fzf)
+if [ -n "$label" ]; then
+    echo $label
+    gh pr edit $PR --repo ubiquiti-uid/uid.terraform-modules --add-label $label
+fi

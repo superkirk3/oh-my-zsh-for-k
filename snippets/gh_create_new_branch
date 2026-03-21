@@ -1,0 +1,3 @@
+#!/bin/zsh
+# gh api post create branch from sha
+gh api -XPOST "repos/ubiquiti-uid/${repo}/git/refs" -f ref="refs/heads/${branch}" -f sha=${commitId}

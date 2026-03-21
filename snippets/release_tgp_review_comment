@@ -1,0 +1,78 @@
+#!/bin/zsh
+
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+
+# SERVICE=(`pwd`)
+# APP=(`basename $(pwd)`)
+# cd ..
+# SERVER=(`basename $(pwd)`)
+# cd ..
+# AWS_ENV=(`basename $(pwd)`)
+# cd $SERVICE
+
+SERVICE=$(pwd)
+APP=$(basename "$SERVICE")
+SERVER=$(basename "$(dirname "$SERVICE")")
+AWS_ENV=$(basename "$(dirname "$(dirname "$SERVICE")")")
+
+
+
+PLAN=$(ls -tl plan*.txt | head -n 1 | awk '{print $NF}')
+#    RESULT=$(ls -tl result*.txt | head -n 1 | awk '{print $NF}')
+
+# remove ansi color
+read -r -d '' detail1 << EOM
+$(cat $PLAN | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g')
+EOM
+
+
+echo "<details><summary><b>Plan</b>:$AWS_ENV/$SERVER/$APP</summary>" >> $HOME/Documents/test/echo.tmp
+echo "\n" >> $HOME/Documents/test/echo.tmp
+echo '```' >> $HOME/Documents/test/echo.tmp
+cat $PLAN | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' >> $HOME/Documents/test/echo.tmp
+echo "\n" >> $HOME/Documents/test/echo.tmp
+# cat $RESULT | sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | sed -n "1,${line}p" >> $HOME/Documents/test/echo.tmp
+echo '```' >> $HOME/Documents/test/echo.tmp
+echo "</details>" >> $HOME/Documents/test/echo.tmp
+COMMENT=`cat $HOME/Documents/test/echo.tmp`
+rm -rf $HOME/Documents/test/echo.tmp
+
+cd $UID_TF_MODULES_BASE_PATH/$WORKTREE/uid.terraform-modules
+
+# if [ -z $PR ];then
+#    BRANCH_NAME=$(gh pr list |grep `git rev-parse --abbrev-ref HEAD`|awk '{print $1}')
+#    else
+#        BRANCH_NAME=$PR
+# fi
+
+#    CURRENT_BRANCH=`git rev-parse --abbrev-ref HEAD`
+#    if [[ $CURRENT_BRANCH == "proto" || $CURRENT_BRANCH == "dogfood" || $CURRENT_BRANCH == "alpha" ]];then
+#       echo "You are now in branch $CURRENT_BRANCH, please input correct PR branch.\n"
+#       echo "eg: PR=xxxx get-plan-log"
+#       return 1
+#    fi
+
+#       COMMENT_URL=`gh pr comment $BRANCH_NAME --body $COMMENT`
+#       if [ $COMMENT_URL ];then
+#          echo "Plan log has been posted to $COMMENT_URL"
+#          echo "$AWS_ENVS: $COMMENT_URL" | pbcopy
+#       fi
+
+         # pr=$(gh pr list |grep `git rev-parse --abbrev-ref HEAD`|awk '{print $1}')
+
+          pr=2039
+          COMMENT_URL=`gh pr comment $pr --body $COMMENT`
+           if [ $COMMENT_URL ];then
+         echo "Plan log has been posted to $COMMENT_URL"
+         echo "**Plan**:$AWS_ENV/$SERVER/$APP: $COMMENT_URL" | pbcopy
+      fi
+         # gh pr comment $pr -F $HOME/Documents/test/echo.tmp|pbcopy
+         # rm -rf $HOME/Documents/test/echo.tmp
+         cd $SERVICE

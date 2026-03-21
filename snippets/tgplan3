@@ -1,0 +1,57 @@
+# tgplan terraform terragrunt plan
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+       # -target) TARGET="-target=$2"; shift ;;
+        -t|--worktree) ARG_WORKTREE="$2";  shift ;;
+    esac
+    shift
+done
+
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+
+export TG_SRC=$UID_TF_MODULES_BASE_PATH/$WORKTREE/uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+# replace remote git to local git
+export remote_git='ssh://git@github.com:Ubiquiti-UID/uid.devops.terraform.git'
+export local_git=$devops_terraform_local_git
+echo $local_git
+
+# cd ../../../../../../uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+cd $TG_SRC
+#git grep -rli 'git@github.com:Ubiquiti-UID/uid.devops.terraform.git' * | xargs sed -i '' 's|ssh://git@github.com:Ubiquiti-UID/uid.devops.terraform.git|${LOCAL_WORK_HOME:-$HOME/work_home}/git/mirror/uid-devops-modules|g'
+#git grep -rli $remote_git * | xargs sed -i '' "s|$remote_git|$local_git|g"
+cd -
+# end replace
+# git -C '${DEV_CONFIG_SSH_PATH:-$HOME/Dropbox/Dev/configs/ssh}' apply uidev.local.patch
+rg 'git::ssh://git@git.uidev.tools/devops/devops.terraform.git' -l $TG_SRC/* | xargs gsed -i 's|git::ssh://git@git.uidev.tools/devops/devops.terraform.git|git::${LOCAL_WORK_HOME:-$HOME/work_home}/uid.devops.terraform.git|g'
+rg 'git::ssh://git@github.com/Ubiquiti-UID' -l $TG_SRC/* | xargs gsed -i "s|ssh://git@github.com/Ubiquiti-UID|${LOCAL_WORK_HOME:-$HOME/work_home}|g"
+[ ! -f .terraform-version ] && echo "0.14.11" > .terraform-version
+[ ! -f .terragrunt-version ] && echo "0.39.1" > .terragrunt-version
+terragrunt -v
+
+rm -rf .terragrunt-cache
+echo "TG_SRC: $TG_SRC"
+terragrunt import --terragrunt-source $TG_SRC 'module.db_rotation.aws_secretsmanager_secret_version.secret' 'arn:aws:secretsmanager:us-west-2:090052012485:secret:/qa/ud/DATABASE-fgBamg|27a3530d-af6b-4031-97c8-d830d145310e'
+
+#-out `pwd`/plan.out 2>&1 && terragrunt show --terragrunt-source $TG_SRC `pwd`/plan.out | tee -a `pwd`/plan-`date +"%Y-%m-%d-%H-%M-%S"`.txt &&  terragrunt show --json --terragrunt-source $TG_SRC `pwd`/plan.out 2>/dev/null | jq -r '([.resource_changes[].change.actions?]|flatten)|{"create":(map(select(.=="create"))|length),"update":(map(select(.=="update"))|length),"delete":(map(select(.=="delete"))|length)}' | tee CHANGES.JSON.txt
+
+
+# -target aws_secretsmanager_secret.secrets -target aws_secretsmanager_secret_version.secrets
+#-target aws_elasticache_replication_group.app_at_rest
+#-target aws_security_group_rule.allow_db_server_ingress -target aws_db_event_subscription.failover_event -target module.db_rotation -target module.db13
+#-target aws_codepipeline.app_build -target aws_cloudwatch_event_rule.s3
+rm -f .terraform-version
+# replace back
+# cd ../../../../../../uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+cd $TG_SRC
+rg "${LOCAL_WORK_HOME:-$HOME/work_home}" -l $TG_SRC/* | xargs gsed -i "s|${LOCAL_WORK_HOME:-$HOME/work_home}|ssh://git@github.com/Ubiquiti-UID|g"
+#git grep -rli $local_git * | xargs sed -i '' "s|$local_git|$remote_git|g"
+cd -
+# end replace

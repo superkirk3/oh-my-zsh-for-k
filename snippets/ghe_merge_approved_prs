@@ -1,0 +1,8 @@
+#!/bin/zsh
+# ghe merge approved PRs
+[ -z "$GITHUB_TOKEN" ] && export GITHUB_TOKEN=`pass show gh_token`
+for i in $(hub pr list | fzf -m | awk '{print $1}' | cut -c 2-)
+do
+echo $i
+# curl -s -q -X PUT -H "Authorization: token `pass show ghe_token`" -H "Accept: application/vnd.github.v3+json" "https://git.uidev.tools/api/v3/repos/ubiquiti-uid/uid.terraform-modules/pulls/$i/merge" | tee -a result.txt
+done

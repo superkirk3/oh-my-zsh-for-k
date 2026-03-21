@@ -1,0 +1,8 @@
+#!/bin/zsh
+# tgplan terraform terragrunt plan
+ export TG_SRC=../../../../../../product-uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+ git -C '$DEV_CONFIG_PATH/ssh' apply uidev.local.patch
+ echo "0.13.2.1" > .terraform-version && rm -rf .terragrunt-cache
+ echo "TG_SRC: $TG_SRC"
+ terragrunt plan --terragrunt-source $TG_SRC -out `pwd`/plan.out 2>&1 && terragrunt show --terragrunt-source $TG_SRC `pwd`/plan.out | tee -a `pwd`/plan-`date +"%Y-%m-%d-%H-%M-%S"`.txt &&  terragrunt show --json --terragrunt-source $TG_SRC `pwd`/plan.out 2>/dev/null | jq -r '([.resource_changes[].change.actions?]|flatten)|{"create":(map(select(.=="create"))|length),"update":(map(select(.=="update"))|length),"delete":(map(select(.=="delete"))|length)}' | tee CHANGES.JSON.txt
+ # rm -f .terraform-version

@@ -13,6 +13,8 @@ My zshrc
 - [[#dotzsh][dot.zsh]]
   - [[#install][Install]]
   - [[#update][Update]]
+  - [[#tmux][Tmux]]
+  - [[#snippets][Snippets]]
   - [[#dot-zshenv][Dot zshenv]]
   - [[#dot-zshrc][Dot zshrc]]
     - [[#file-header-set-mode-for-emacs][File Header Set Mode For Emacs]]
@@ -66,11 +68,12 @@ My zshrc
 Fresh macOS bootstrap order:
 
 1. Open Terminal.app on a new machine, install Xcode Command Line Tools and Homebrew, then persist Homebrew into your login shell environment.
-2. Install the base packages this repo assumes: `git`, `emacs`, and `iterm2`.
+2. Install the base packages this repo assumes: `git`, `tmux`, `emacs`, and `iterm2`.
 3. Install `oh-my-zsh`.
 4. Clone this repo into `~/.zshrc.d`, link `.zshrc` and `.zshenv`, then restart zsh once.
-5. Clone Doom Emacs, link the private Doom config from this repo into `~/.doom.d`, then run `doom install` / `doom sync`.
-6. Open iTerm2 and Emacs once to let first-run initialization finish.
+5. Clone upstream `gpakosz/.tmux`, then link the repo-managed `~/.tmux.conf.local`.
+6. Clone Doom Emacs, link the private Doom config from this repo into `~/.doom.d`, then run `doom install` / `doom sync`.
+7. Open iTerm2, tmux, and Emacs once to let first-run initialization finish, then run validation.
 
 *** 1. Homebrew
 #+begin_src shell
@@ -89,7 +92,7 @@ fi
 
 *** 2. Base packages
 #+begin_src shell
-brew install git emacs
+brew install git tmux emacs
 brew install --cask iterm2
 #+end_src
 
@@ -105,11 +108,22 @@ git clone https://github.com/superkirk3/oh-my-zsh-for-k.git ~/.zshrc.d
 [[ -e ~/.zshenv && ! -L ~/.zshenv ]] && mv ~/.zshenv ~/.zshenv.bak
 ln -snf ~/.zshrc.d/dot.zshrc ~/.zshrc
 ln -snf ~/.zshrc.d/.zshenv ~/.zshenv
-mkdir -p ~/.config/snippets ~/.zshrc.d/misc
+mkdir -p ~/.zshrc.d/misc
 exec zsh
 #+end_src
 
-*** 5. Doom Emacs
+*** 5. Tmux
+#+begin_src shell
+git clone --depth 1 https://github.com/gpakosz/.tmux.git ~/.tmux
+ln -snf ~/.tmux/.tmux.conf ~/.tmux.conf
+ln -snf ~/.zshrc.d/.tmux.conf.local ~/.tmux.conf.local
+#+end_src
+
+Open tmux once after linking. This repo keeps `~/.tmux.conf.local` under
+version control, while `~/.tmux` itself remains an upstream clone. If a plugin
+doesn't appear automatically on first launch, press `Ctrl-q I` inside tmux.
+
+*** 6. Doom Emacs
 #+begin_src shell
 git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.emacs.d
 
@@ -125,10 +139,11 @@ else
 fi
 #+end_src
 
-*** 6. Validation
+*** 7. Validation
 #+begin_src shell
 zsh -n ~/.zshrc.d/dot.zshrc
 sh -n ~/.zshrc.d/EDITOR
+tmux -L bootstrap -f ~/.tmux.conf start-server \; show -gv prefix
 ~/.emacs.d/bin/doom sync
 #+end_src
 
@@ -138,6 +153,38 @@ sh -n ~/.zshrc.d/EDITOR
 cd ~/.zshrc.d
 git pull origin master
 #+end_src
+
+** Tmux
+[[#contents][🔝]]
+
+This repo tracks `~/.tmux.conf.local`, but it intentionally does not vendor
+`~/.tmux`:
+
+- `~/.tmux` is an upstream clone of `gpakosz/.tmux`
+- `~/.tmux/plugins` is plugin install state managed by TPM
+- `~/.tmux/resurrect` stores session snapshots and pane history
+
+For a new machine, clone `~/.tmux` from upstream and symlink
+`~/.zshrc.d/.tmux.conf.local` into `~/.tmux.conf.local`. Do not commit
+`~/.tmux/plugins` or `~/.tmux/resurrect` into this repo.
+
+** Snippets
+[[#contents][🔝]]
+
+Snippets now live in `~/.zshrc.d/snippets`. By default `.zshenv` uses that
+directory when it exists, and prepends it to `PATH`.
+
+The snippet picker is bound to `Esc Esc`, `Alt-x`, and `Ctrl-x '`. Each snippet
+file follows the same structure:
+
+#+begin_src shell
+#!/bin/zsh
+# short description shown in fzf
+actual command body...
+#+end_src
+
+If you need a different snippet location on a specific machine, override
+`SNIPPETS_PATH` before `.zshenv` is loaded.
 
 ** Dot zshenv
 :PROPERTIES:
@@ -149,11 +196,18 @@ export DOTDIR="${DOTDIR:-$HOME/.zshrc.d}"
 export EDITOR_PATH="$DOTDIR"
 
 #export EMACS="*term*"
-export SNIPPETS_PATH="${SNIPPETS_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/snippets}"
+if [[ -z "${SNIPPETS_PATH:-}" || "$SNIPPETS_PATH" = "${XDG_CONFIG_HOME:-$HOME/.config}/snippets" ]]; then
+  if [ -d "$DOTDIR/snippets" ]; then
+    export SNIPPETS_PATH="$DOTDIR/snippets"
+  else
+    export SNIPPETS_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/snippets"
+  fi
+fi
 if [ -d "$SNIPPETS_PATH" ] && [[ ":$PATH:" != *":$SNIPPETS_PATH:"* ]]; then
   export PATH="$SNIPPETS_PATH:$PATH"
 fi
 export FZF_SNIPPETS_BINDKEYS='^[x ^[^['
+export ZSH_TMUX_CONFIG="${ZSH_TMUX_CONFIG:-$HOME/.tmux.conf.local}"
 
 export DOOMDIR="${DOOMDIR:-$HOME/.doom.d}"
 export TRU_HISTFILE="${TRU_HISTFILE:-$HOME/.zsh_history}"
@@ -227,6 +281,9 @@ ZSH=$HOME/.oh-my-zsh
 # ZSH_THEME="bira"
 # ZSH_THEME="spaceship"
 ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# Keep the oh-my-zsh tmux plugin on the local tmux config file.
+export ZSH_TMUX_CONFIG="${ZSH_TMUX_CONFIG:-$HOME/.tmux.conf.local}"
 
 #+end_src
 [[#contents][🔝]]
@@ -432,9 +489,10 @@ else
 fi
 
 # fzf-tab
+typeset -g FZF_COLOR_OPTS='--color=fg:#e6edf3,bg:-1,hl:#ffd866,fg+:#ffffff,bg+:#334155,hl+:#ffe082,info:#8ab4f8,prompt:#e6edf3,pointer:#8ab4f8,marker:#7ee787,spinner:#8ab4f8,header:#c9d1d9,query:#f8fafc,border:#5c6370'
 zstyle ':fzf-tab:complete:_zlua:*' query-string input
 zstyle ':fzf-tab:complete:kill:argument-rest' fzf-preview 'ps --pid=$word -o cmd --no-headers -w -w'
-zstyle ':fzf-tab:complete:kill:argument-rest' fzf-flags '--preview-window=down:3:wrap'
+zstyle ':fzf-tab:complete:kill:argument-rest' fzf-flags ${(z)FZF_COLOR_OPTS} '--preview-window=down:3:wrap'
 zstyle ':fzf-tab:complete:kill:*' popup-pad 0 3
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'exa -1 --color=always $realpath'
 zstyle ':fzf-tab:complete:cd:*' popup-pad 30 0
@@ -442,9 +500,9 @@ zstyle ':completion:*:git-checkout:*' sort false
 zstyle ':completion:*:exa' file-sort modification
 zstyle ':completion:*:exa' sort false
 zstyle -d ':completion:*' format
-zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*:descriptions' format '%F{111}[%d]%f'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-zstyle ":fzf-tab:*" fzf-flags --color=bg+:99
+zstyle ":fzf-tab:*" fzf-flags ${(z)FZF_COLOR_OPTS}
 if (( $+commands[tmux] )); then
   zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup # tmux 3.2
 else
@@ -794,6 +852,14 @@ vterm_printf(){
     fi
 }
 
+user_set_cursor_color() {
+    local cursor_color
+    cursor_color="${1:-${TERMINAL_CURSOR_COLOR:-#e6e6e6}}"
+    vterm_printf "12;${cursor_color}"
+}
+
+user_set_cursor_color
+
 
 # notmuch seach
 # https://emacs-china.org/t/topic/305/73?u=tru
@@ -958,12 +1024,13 @@ bindkey '^X^R' fzf-history-widget-accept
 bindkey '^[g'  fzf-cd-widget
 
 # export FZF_DEFAULT_OPTS='--no-height --no-reverse --bind alt-a:select-all,alt-A:deselect-all,ctrl-t:toggle-all'
-export FZF_DEFAULT_OPTS='--no-height --no-reverse
+export FZF_DEFAULT_OPTS="$FZF_COLOR_OPTS
+       --no-height --no-reverse
        --bind alt-a:toggle-all
        --bind ctrl-t:toggle-preview
        --bind=ctrl-alt-j:preview-down
        --bind=ctrl-alt-k:preview-up
-'
+"
 # Using highlight (http://www.andre-simon.de/doku/highlight/en/highlight.html)
 export FZF_CTRL_T_OPTS="--preview '(highlight -O ansi -l {} 2> /dev/null || cat {} || tree -C {}) 2> /dev/null | head -200'"
 # Full command on preview window

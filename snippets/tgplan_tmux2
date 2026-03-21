@@ -1,0 +1,113 @@
+#!/bin/zsh
+# terraform tgplan terragrunt plan list
+#!/bin/bash
+set -e
+
+AWS_ENV=
+PR=
+FOR_LIST=
+APPLY=false
+
+if [ -n "$1" ]; then
+    AWS_ENV=$1
+    shift 1
+else
+    echo 'AWS_ENV is missing'
+    exit
+fi
+
+if [ -n "$1" ]; then
+    PR=$1
+    shift 1
+else
+    echo 'PR is missing'
+    exit
+fi
+
+if [ -n "$1" ]; then
+    FOR_LIST="$1"
+    shift 1
+else
+    echo 'FOR_LIST is missing'
+    exit
+fi
+
+# for arg; do
+#   case "$arg" in
+#     --apply ) APPLY=true ;;
+#   esac
+# done
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -t|--worktree) UID_WORKTREE="$2"; shift ;;
+        -s|--tmux_session) tmux_session_name="$2"; shift ;;
+        --apply) APPLY=true ;;
+    esac
+    shift
+done
+
+
+echo $AWS_ENV
+echo $PR
+echo $APPLY
+echo $FOR_LIST
+echo $UID_WORKTREE
+echo $tmux_session_name
+
+if [ -z $tmux_session_name ]; then
+    SESSION_NAME="PR${PR}_${AWS_ENV}"
+else
+    SESSION_NAME=$tmux_session_name
+fi
+
+echo "SESSION_NAME: $SESSION_NAME"
+
+if [ -n $UID_WORKTREE ];then
+    echo "Worktree: $UID_WORKTREE"
+else
+    echo 'Worktree is missing'
+    exit
+fi
+
+TF_PATH="$UID_TF_MODULES_BASE_PATH/product-uid/infra/services/$AWS_ENV"
+
+chmod +x $snippets_dir/tgplan2
+chmod +x $snippets_dir/tgapply2
+
+#tmux has-session -t ${SESSION_NAME}
+# if [ $? != 0 ]
+if ! tmux has-session -t ${SESSION_NAME}
+then
+  # Create the session
+  tmux new-session -s ${SESSION_NAME} -n tf -d
+fi
+
+tmux attach -t ${SESSION_NAME} || true
+setopt shwordsplit
+for i in $FOR_LIST
+do
+    WINDOW_NAME=$(echo $i | sed 's#-#_#g' | sed 's#/#_#g')
+    if [ ! -z $tmux_session_name ]; then
+        WINDOW_NAME+="_${AWS_ENV}_${PR}"
+    fi
+
+    echo "tmux new-window -n ${WINDOW_NAME} -t ${SESSION_NAME}"
+    if ! tmux select-window -t ${SESSION_NAME}:${WINDOW_NAME}
+    then
+        echo "tmux new-window -a -n ${WINDOW_NAME} -t ${SESSION_NAME}"
+        tmux new-window -a -n ${WINDOW_NAME} -t ${SESSION_NAME}
+    fi
+
+    if [ $APPLY = 'false' ];then
+        echo 'plan'
+        # tmux send-keys -t ${SESSION_NAME}:${WINDOW_NAME} "  date && cd $TF_PATH/$i && echo 'hi'" C-m; sleep 0.5
+        tmux send-keys -t ${SESSION_NAME}:${WINDOW_NAME} " date && cd $TF_PATH/$i && rm -f plan.out CHANGES.JSON.txt && zsh $snippets_dir/tgplan2 -t $UID_WORKTREE  && date && cat CHANGES.JSON.txt | jq" C-m
+    fi
+
+    if [ $APPLY = 'true' ];then
+        echo 'apply'
+        tmux send-keys -t ${SESSION_NAME}:${WINDOW_NAME} " date && cd $TF_PATH/$i && zsh $snippets_dir/tgapply2 -t $UID_WORKTREE" C-m; sleep 1
+    fi
+    sleep 1
+done

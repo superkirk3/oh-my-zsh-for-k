@@ -1,0 +1,24 @@
+#!/bin/zsh
+# aws ecs enable containerInsights multi
+export AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+echo $AWS_PROFILE
+# export AWS_REGION=us-west-2
+
+#app=${app}
+#name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | select( .name | contains("-'$app'")) | .name'`
+#name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | .name' | fzf -m -e`
+name=`aws ecs list-clusters | jq -r '.clusterArns | .[]' | awk -F ':' '{print $6}' | cut -d'/' -f 2 | fzf -m -e`
+ecs="name\tcontainerInsights\n"
+for i in `echo $name`; do
+    ecs+=`aws ecs describe-clusters --cluster $i --include=SETTINGS | jq -r ".clusters[] | {name: (.clusterName), value: (.settings[].value)} | flatten | @tsv"`"\n"
+done
+echo $ecs | column -s $'\t' -t
+echo -n "\nContinue? ( yes/no ) "; read continue
+if [ $continue = "yes" ]; then
+    echo "\nContinue...\n"
+    for i in `echo $name`
+    do
+        aws ecs update-cluster-settings --cluster $i --settings name=containerInsights,value=enabled | jq -r ".cluster | {name: (.clusterName), value: (.settings[].value)}"
+    done
+
+fi

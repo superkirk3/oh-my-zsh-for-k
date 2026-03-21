@@ -1,0 +1,11 @@
+#!/bin/zsh
+# ghe tgplan tmux snippet pr
+ setopt shwordsplit; chmod +x $snippets_dir/tgplan $snippets_dir/tgapply $snippets_dir/tgplan_tmux;
+#AWS_ENV=cell-proto;
+AWS_ENV=dogfooding;
+PR=1068;
+uid_worktree=dogfood
+
+FOR_LIST=$(gh pr diff $PR --repo ubiquiti-uid/uid.terraform-modules | grep 'diff' | awk -F 'b/' '{print $2}' | cut -d '/' -f 1,2 | sort | uniq | grep -v '\.' | tr '\n' ' ')
+
+zsh $snippets_dir/tgplan_tmux $AWS_ENV $PR "$FOR_LIST" -t $uid_worktree

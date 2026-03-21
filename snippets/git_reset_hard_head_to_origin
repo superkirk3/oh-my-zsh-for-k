@@ -1,0 +1,3 @@
+#!/bin/zsh
+# git reset hard from head to orgin
+git reset --hard @{u}

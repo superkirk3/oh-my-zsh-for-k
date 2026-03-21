@@ -1,0 +1,33 @@
+#!/bin/zsh
+# ghe api stop web hook
+tmp_SEARCH_Q=${SEARCH_Q}
+export SEARCH_Q=
+echo -n "Enter SEARCH_Q num [current: $tmp_SEARCH_Q]: "; read SEARCH_Q
+export SEARCH_Q=${SEARCH_Q:-${tmp_SEARCH_Q}}
+
+if [[ -z $SEARCH_Q ]]; then
+    return false
+fi
+
+REPO=$(gh api -XGET "/search/repositories" -f q=$SEARCH_Q --jq '.items.[].name' | fzf)
+if [[ -z $REPO ]]; then
+    return false
+fi
+
+echo $REPO
+
+echo -n "\nContinue? ( yes/no ) "; read continue
+if [[ ! $continue = "yes" ]]; then
+    echo "no"
+    return
+fi
+echo $continue
+
+setopt shwordsplit
+HOOK_IDS=$(gh api -XGET repos/ubiquiti-uid/$REPO/hooks | jq -r '.[] | .id')
+echo $HOOK_IDS
+for HOOK_ID in $HOOK_IDS; do
+    echo "gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=false --jq '{ id, active }'"
+    gh api -XPATCH repos/ubiquiti-uid/$REPO/hooks/$HOOK_ID -F active=false --jq '{ id, active }'
+done
+unsetopt shwordsplit

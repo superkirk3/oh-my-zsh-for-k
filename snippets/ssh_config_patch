@@ -1,0 +1,3 @@
+#!/bin/zsh
+# ssh config local patch
+git -C '$DEV_CONFIG_PATH/ssh' apply uidev.local.patch

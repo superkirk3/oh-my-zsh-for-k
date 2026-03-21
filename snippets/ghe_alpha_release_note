@@ -1,0 +1,5 @@
+#!/bin/zsh
+# ghe alpha release note git
+for pr in $(git log --pretty="%s" --merges origin/alpha..origin/dogfood | grep pull | cut -d' ' -f4 | cut -d'#' -f2 | sort -rn | uniq | tr '\n' ' ')
+do
+    curl -s -q -H "Authorization: token `pass show ghe_token`" -H "Accept: application/vnd.github.v3+json" "https://git.uidev.tools/api/v3/repos/ubiquiti-uid/uid.terraform-modules/pulls/$pr" | jq -r ' (["#\(.number)","`Label:\(.labels |  .[] | .name | select(contains("break")))`" ,"\(.title)"] | @tsv)'

@@ -1,0 +1,6 @@
+#!/bin/zsh
+# gh issue list
+read -r -d '' cmd_gh << EOM
+gh issue list --repo "Ubiquiti-UID/uid.devops-pandora" -s all -S "is:issue sort:updated-desc comments:>0 updated:>=$(date -v -0d +'%Y-%m-%d') involves:`gh api repos/Ubiquiti-UID/uid.devops-pandora/collaborators --paginate --jq '.[] | .login' | fzf`" # wiki in:comments,body,title " # -a "@me"
+EOM
+echo $cmd_gh | tee /dev/tty | zsh

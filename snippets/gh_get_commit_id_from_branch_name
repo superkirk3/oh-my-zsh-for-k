@@ -1,0 +1,5 @@
+#!/bin/zsh
+# gh get commit id from branch name
+REPO=`gh api -XGET "orgs/ubiquiti-uid/repos" --paginate | jq -r '.[] | .name' | fzf`; [ -z "$REPO" ] && return false
+BRANCH=`gh api -XGET "repos/ubiquiti-uid/uid.config-s3/branches" --paginate | jq -r '.[] | .name' | fzf`; [ -z "$BRANCH" ] && return false
+echo "gh api -XGET repos/ubiquiti-uid/$REPO/branches/$BRANCH | jq -r '.commit.sha'" | tee /dev/tty | zsh

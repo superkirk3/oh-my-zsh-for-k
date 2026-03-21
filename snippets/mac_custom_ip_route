@@ -1,0 +1,3 @@
+#!/bin/zsh
+# mac office ip route
+sudo route add -net 10.8.8.0 -netmask 255.255.255.0 10.100.2.4

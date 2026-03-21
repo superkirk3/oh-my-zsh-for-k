@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+export AWS_PROFILE="$(
+  awk -F'[][]' '/^\[.*\]$/ {print $2}' ~/.aws/credentials ~/.aws/config 2>/dev/null \
+  | sort -u \
+  | fzf --query "$AWS_PROFILE"
+)" && echo "AWS_PROFILE=$AWS_PROFILE" && \
+INSTANCE_ID="$(
+  aws ec2 describe-instances \
+    --region us-east-2 \
+    --profile "$AWS_PROFILE" \
+    --filters 'Name=instance-state-name,Values=running' \
+    --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,InstanceId,PrivateIpAddress]' \
+    --output text \
+  | column -t \
+  | fzf --header='Select running EC2' \
+  | awk '{print $2}'
+)" && \
+[ -n "$INSTANCE_ID" ] && aws ssm start-session \
+  --region us-east-2 \
+  --profile "$AWS_PROFILE" \
+  --target "$INSTANCE_ID" \
+  --document-name AWS-StartInteractiveCommand \
+  --parameters 'command=["sudo -iu ubuntu"]'

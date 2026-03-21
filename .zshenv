@@ -2,11 +2,18 @@ export DOTDIR="${DOTDIR:-$HOME/.zshrc.d}"
 export EDITOR_PATH="$DOTDIR"
 
 #export EMACS="*term*"
-export SNIPPETS_PATH="${SNIPPETS_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/snippets}"
+if [[ -z "${SNIPPETS_PATH:-}" || "$SNIPPETS_PATH" = "${XDG_CONFIG_HOME:-$HOME/.config}/snippets" ]]; then
+  if [ -d "$DOTDIR/snippets" ]; then
+    export SNIPPETS_PATH="$DOTDIR/snippets"
+  else
+    export SNIPPETS_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/snippets"
+  fi
+fi
 if [ -d "$SNIPPETS_PATH" ] && [[ ":$PATH:" != *":$SNIPPETS_PATH:"* ]]; then
   export PATH="$SNIPPETS_PATH:$PATH"
 fi
 export FZF_SNIPPETS_BINDKEYS='^[x ^[^['
+export ZSH_TMUX_CONFIG="${ZSH_TMUX_CONFIG:-$HOME/.tmux.conf.local}"
 
 export DOOMDIR="${DOOMDIR:-$HOME/.doom.d}"
 export TRU_HISTFILE="${TRU_HISTFILE:-$HOME/.zsh_history}"

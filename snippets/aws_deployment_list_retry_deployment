@@ -1,0 +1,62 @@
+#!/bin/zsh
+# aws deployment list retry deployment
+#export AWS_PROFILE="admin@uid-cell-proto"
+for service in $(aws deploy list-applications | jq -r '.[][]')
+#for service in $(echo "cell-proto-api-gw2" "cell-proto-tools")
+do
+    echo $service
+    #read -p "Continue (Yes/No)?" choice
+#fix for zsh
+read "choice?Continue (Yes/No)?"
+case "$choice" in 
+  yes|Yes ) mychoice="deploy";;
+  no|No ) echo "no";;
+  * ) echo "invalid";;
+esac
+if [ "$mychoice" = "deploy" ];
+then
+	  mychoice="no"
+    echo "redeployment SERVICE: $service"
+    #  aws deploy list-deployment-groups --application-name "$service"
+    for groups in $(aws deploy list-deployment-groups --application-name "$service"|jq -r '.[][]')
+    do
+	  echo $mychoiceagain
+	  echo "DEPLOYMENT-GROUP: $groups"
+	 # read -p "Continue (Yes/No)?" choiceagain
+	  read "choiceagain?Continue (Yes/No)?"
+	  #fix for zsh
+        case "$choiceagain" in 
+          yes|Yes ) mychoiceagain="deploy";;
+          no|No ) echo "no";;
+          * ) echo "invalid";;
+        esac
+	if [ "$mychoiceagain" = "deploy" ];
+	then
+	    mychoiceagain="nochoice"
+	    echo "redeployment SERVICE: $service DEPLOYMENT-GROUP: $groups"
+            deployid=$(aws deploy list-deployments --application-name "$service" --deployment-group-name "$groups" --include-only-statuses "Succeeded" | jq -r ".[][0]")
+	    echo "redeployment SERVICE: $service DEPLOYMENT-GROUP: $groups DEPLOYMENT-ID: $deployid"
+            hashid=$(aws deploy get-deployment --deployment-id "$deployid" | jq '.deploymentInfo.revision.string[]' -r)
+	    echo "redeployment SERVICE: $service DEPLOYMENT-GROUP: $groups DEPLOYMENT-ID: $deployid REVISION: $hashid"
+            aws deploy create-deployment --application-name "$service" --deployment-group-name "$groups" --auto-rollback-configuration '{"enabled":true,"events":["DEPLOYMENT_FAILURE"]}' --revision "{\"revisionType\":\"String\",\"string\":{\"sha256\":\"$hashid\"}}" | jq .deploymentId -r > /tmp/deploy_tmp_file_lock
+	    cat /tmp/deploy_tmp_file_lock
+	    while [ $(aws deploy get-deployment --deployment-id "$(cat /tmp/deploy_tmp_file_lock)" | jq '.deploymentInfo.status' -r) != "Succeeded" ]
+	    do
+		aws deploy get-deployment --deployment-id "$(cat /tmp/deploy_tmp_file_lock)" | jq '.deploymentInfo.status' -r 
+		#aws deploy get-deployment --deployment-id "$(cat /tmp/deploy_tmp_file_lock)" | jq '.deploymentInfo.deploymentOverview'
+		tput cuu1
+		sleep 5
+	    done
+		aws deploy get-deployment --deployment-id "$(cat /tmp/deploy_tmp_file_lock)" | jq '.deploymentInfo.status' -r
+		  else
+            mychoiceagain="nochoice"
+	    echo "cancel SERVICE: $service DEPLOYMENT-GROUP: $groups"
+	fi
+	    mychoiceagain="nochoice"
+	done
+else
+	  mychoice="no"
+	  echo "cancel $service"
+fi
+	  mychoice="no"
+done

@@ -1,0 +1,3 @@
+#!/bin/zsh
+# git log history search
+git log -S '${string}' -p

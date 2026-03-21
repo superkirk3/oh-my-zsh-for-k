@@ -1,0 +1,38 @@
+#!/bin/zsh
+
+AWS_PROFILE=`cat ~/.aws/credentials | grep '\[' | grep -v '#' | tr -d '[' | tr -d ']' | fzf --query "$AWS_PROFILE"`
+if [ "$AWS_PROFILE" = "admin@uid-old-proto" ];then
+    var=1
+elif [ "$AWS_PROFILE" = "admin@uid-cell-proto" ];then
+    var=11
+elif [ "$AWS_PROFILE" = "admin@uid-core-proto" ];then
+    var=2
+elif [ "$AWS_PROFILE" = "admin@uid-dogfooding" ];then
+    var=17
+elif [ "$AWS_PROFILE" = "admin@uid-core-dogfooding" ];then
+    var=4
+elif [ "$AWS_PROFILE" = "admin@uid-ea-qa" ];then
+    var=9
+elif [ "$AWS_PROFILE" = "admin@uid-core-ea-qa" ];then
+    var=12
+elif [ "$AWS_PROFILE" = "admin@uid-qa" ];then
+    var=5
+elif [ "$AWS_PROFILE" = "admin@uid-cell-qa" ];then
+    var=6
+elif [ "$AWS_PROFILE" = "admin@uid-cell2-qa" ];then
+    var=7
+elif [ "$AWS_PROFILE" = "admin@uid-core-qa" ];then
+    var=8
+elif [ "$AWS_PROFILE" = "admin@uid-cell3-qa" ];then
+    var=13
+elif [ "$AWS_PROFILE" = "admin@uid-standard-eu-qa" ];then
+    var=15
+elif [ "$AWS_PROFILE" = "admin@uid-standard-qa" ];then
+    var=14
+elif [ "$AWS_PROFILE" = "admin@frontrow-prod" ];then
+    var=16
+else echo "bad option!"
+     break
+
+fi
+open -na 'Google Chrome' --args --profile-directory="Profile $var" `aws-console -u -p $AWS_PROFILE`

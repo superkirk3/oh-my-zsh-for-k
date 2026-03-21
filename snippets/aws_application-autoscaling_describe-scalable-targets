@@ -1,0 +1,11 @@
+#!/bin/zsh
+# aws application-autoscaling describe-scalable-targets
+name=`aws codepipeline list-pipelines | jq -c '.[]' | jq -r '.[] | select( .name | contains("config")|not) | .name' | fzf -m -e`
+echo $name
+echo -n "\nContinue? ( yes/no ) "; read continue
+if [ ! $continue = "yes" ]; then
+    return
+fi
+for i in `echo $name`; do
+    aws application-autoscaling describe-scalable-targets --service-namespace ecs --resource-id service/$i/$i/
+done

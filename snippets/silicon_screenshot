@@ -1,0 +1,3 @@
+#!/bin/zsh
+# silicon screenshot code clipboard
+silicon -l ${lang} --no-line-number --from-clipboard --to-clipboard --shadow-color '#555' --background '#fff' --shadow-blur-radius 30

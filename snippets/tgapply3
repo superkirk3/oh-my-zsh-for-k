@@ -1,0 +1,32 @@
+    SERVICE=$(basename $(dirname $PWD))/$(basename $PWD)
+    AWS_ENVS=$(basename $(cd ../../ && pwd))
+
+    if [[ $PWD == *"product-uid"* ]]; then
+        export TG_SRC=$UID_TF_MODULES_BASE_PATH/uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD)
+        export TERRAGRUNT_DOWNLOAD=/tmp/tgcache/$AWS_ENVS/$SERVICE/.terragrunt-cache
+    elif [[ $PWD == *"product-standard"* ]]; then
+        declare -A profiles=(
+            ["cell-proto"]="admin@uid-cell-proto"
+            ["old-proto"]="admin@uid-old-proto"
+            ["dogfooding"]="admin@uid-dogfooding"
+            ["us-qa"]="admin@uid-standard-qa"
+            ["eu-qa"]="admin@uid-standard-eu-qa"
+        )
+        if [[ -n "${profiles[$AWS_ENVS]}" ]]; then
+            export AWS_PROFILE="${profiles[$AWS_ENVS]}"
+        else
+            echo "无效的环境: $AWS_ENVS"
+        fi
+        export ACCOUNT_ID=$(aws sts get-caller-identity --profile $AWS_PROFILE| jq -r '.Account')
+        export REGION=$(aws configure get region --profile $AWS_PROFILE)
+
+        export TG_SRC=$UID_TF_MODULES_BASE_PATH/uid-repo/product-standard/modules//$(basename $(dirname $PWD))/$(basename $PWD)
+        export TERRAGRUNT_DOWNLOAD=/tmp/tgcache_standard/$AWS_ENVS/$SERVICE/.terragrunt-cache
+    else
+        echo "Error: Current directory is not in product-uid or product-standard project"
+        return 1
+    fi
+    echo "TG_SRC: $TG_SRC"
+    echo "tgcache path: $TERRAGRUNT_DOWNLOAD"
+
+    terragrunt apply --terragrunt-source $TG_SRC plan.out | tee -a `pwd`/result-$(date +"%Y-%m-%d-%H-%M-%S").txt

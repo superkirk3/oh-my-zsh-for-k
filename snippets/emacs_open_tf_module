@@ -1,0 +1,11 @@
+#!/bin/zsh
+# emacs open terraform module from terragrunt folder
+if [ -z "$ARG_WORKTREE" ]; then
+    WORKTREE=`ls $UID_TF_MODULES_BASE_PATH | fzf --query "$WORKTREE"`
+    if [ -z "$WORKTREE" ]; then
+        return false
+    fi
+else
+    WORKTREE=$ARG_WORKTREE
+fi
+cd ../../../../../../${WORKTREE}/product-uid.terraform-modules//$(basename $(dirname $PWD))/$(basename $PWD) && rgf && cd -
