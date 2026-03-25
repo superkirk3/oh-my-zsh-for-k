@@ -1024,24 +1024,27 @@ bindkey "^s" addspace_
 function prompt_my_fire_dir() {
   emulate -L zsh
   local split_path=(${(s:/:)${(%):-%~}//\%/%%})
+  local dir_fg=236
+  local dir_bg_home=175
+  local dir_bg_soft=182
+  local dir_bg_cool=147
+  local dir_bg_leaf=183
   (( $#split_path )) || split_path+=/
 
-  color1=92
-  color2=97
   if (( $#split_path == 1)); then
-    p10k segment -s SOLO -b 92 -f 255 -t $split_path
+    p10k segment -s SOLO -b $dir_bg_soft -f $dir_fg -t $split_path
     return
   fi
-  p10k segment -s FIRST -b $color1 -f 3 -t $split_path[1]
+  p10k segment -s FIRST -b $dir_bg_home -f $dir_fg -t $split_path[1]
   shift split_path
   while (( $#split_path > 1 )); do
-    p10k segment -s EVEN -b $color2 -f 3 -t $split_path[1]
+    p10k segment -s EVEN -b $dir_bg_cool -f $dir_fg -t $split_path[1]
     shift split_path
     (( $#split_path > 1 )) || break
-    p10k segment -s ODD -b $color1 -f 3 -t $split_path[1]
+    p10k segment -s ODD -b $dir_bg_soft -f $dir_fg -t $split_path[1]
     shift split_path
   done
-  p10k segment -s LAST -b 129 -f 255 -t $split_path[1]
+  p10k segment -s LAST -b $dir_bg_leaf -f $dir_fg -t $split_path[1]
 
 }
 
@@ -1078,18 +1081,85 @@ typeset POWERLEVEL9K_MY_FIRE_DIR_{FIRST,SOLO}_VISUAL_IDENTIFIER_EXPANSION='${my_
 POWERLEVEL9K_SHORTEN_DIR_LENGTH=
 POWERLEVEL9K_SHORTEN_DELIMITER=""
 POWERLEVEL9K_SHORTEN_STRATEGY="truncate_absolute"
-POWERLEVEL9K_OS_ICON_FOREGROUND=232
+typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=236
+typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND=225
 POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🌈'
+typeset -g POWERLEVEL9K_VCS_CLEAN_BACKGROUND=116
+typeset -g POWERLEVEL9K_VCS_MODIFIED_BACKGROUND=152
+typeset -g POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND=152
+typeset -g POWERLEVEL9K_VCS_CONFLICTED_BACKGROUND=181
+typeset -g POWERLEVEL9K_VCS_LOADING_BACKGROUND=189
+typeset -g POWERLEVEL9K_VCS_{CLEAN,MODIFIED,UNTRACKED,CONFLICTED,LOADING}_FOREGROUND=236
 typeset -g POWERLEVEL9K_VCS_PREFIX='on '
 typeset -g POWERLEVEL9K_VCS_VISUAL_IDENTIFIER_EXPANSION=''
-typeset -g POWERLEVEL9K_VCS_BRANCH_ICON='🌿 '
+typeset -g POWERLEVEL9K_VCS_BRANCH_ICON='☘️ '
+typeset -g POWERLEVEL9K_TIME_FOREGROUND=236
+typeset -g POWERLEVEL9K_TIME_BACKGROUND=153
 typeset -g POWERLEVEL9K_TIME_VISUAL_IDENTIFIER_EXPANSION='🕒'
 #POWERLEVEL9K_DIR_BACKGROUND=99
 unset POWERLEVEL9K_AWS_SHOW_ON_COMMAND
-typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=99
+typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=177
 typeset -g POWERLEVEL9K_AWS_DEFAULT_FOREGROUND=7
 typeset -g POWERLEVEL9K_AWS_DEFAULT_BACKGROUND=202
 # typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=same-dir
+
+function my_git_formatter() {
+  emulate -L zsh
+
+  if [[ -n $P9K_CONTENT ]]; then
+    typeset -g my_git_format=$P9K_CONTENT
+    return
+  fi
+
+  local meta='%7F'
+  local clean='%0F'
+  local modified='%0F'
+  local untracked='%0F'
+  local conflicted='%1F'
+  local branch_icon='☘️ '
+  local res
+
+  # Use a brush when there are unstaged edits; otherwise keep the shamrock.
+  if (( VCS_STATUS_NUM_UNSTAGED || VCS_STATUS_HAS_UNSTAGED == -1 )); then
+    branch_icon='🖌️ '
+  fi
+
+  if [[ -n $VCS_STATUS_LOCAL_BRANCH ]]; then
+    local branch=${(V)VCS_STATUS_LOCAL_BRANCH}
+    (( $#branch > 32 )) && branch[13,-13]="…"
+    res+="${clean}${branch_icon}${branch//\%/%%}"
+  fi
+
+  if [[ -n $VCS_STATUS_TAG && -z $VCS_STATUS_LOCAL_BRANCH ]]; then
+    local tag=${(V)VCS_STATUS_TAG}
+    (( $#tag > 32 )) && tag[13,-13]="…"
+    res+="${meta}#${clean}${tag//\%/%%}"
+  fi
+
+  [[ -z $VCS_STATUS_LOCAL_BRANCH && -z $VCS_STATUS_LOCAL_BRANCH ]] &&
+    res+="${meta}@${clean}${VCS_STATUS_COMMIT[1,8]}"
+
+  if [[ -n ${VCS_STATUS_REMOTE_BRANCH:#$VCS_STATUS_LOCAL_BRANCH} ]]; then
+    res+="${meta}:${clean}${(V)VCS_STATUS_REMOTE_BRANCH//\%/%%}"
+  fi
+
+  (( VCS_STATUS_COMMITS_BEHIND      )) && res+=" ${clean}⇣${VCS_STATUS_COMMITS_BEHIND}"
+  (( VCS_STATUS_COMMITS_AHEAD && !VCS_STATUS_COMMITS_BEHIND )) && res+=" "
+  (( VCS_STATUS_COMMITS_AHEAD       )) && res+="${clean}⇡${VCS_STATUS_COMMITS_AHEAD}"
+  (( VCS_STATUS_PUSH_COMMITS_BEHIND )) && res+=" ${clean}⇠${VCS_STATUS_PUSH_COMMITS_BEHIND}"
+  (( VCS_STATUS_PUSH_COMMITS_AHEAD && !VCS_STATUS_PUSH_COMMITS_BEHIND )) && res+=" "
+  (( VCS_STATUS_PUSH_COMMITS_AHEAD  )) && res+="${clean}⇢${VCS_STATUS_PUSH_COMMITS_AHEAD}"
+  (( VCS_STATUS_STASHES             )) && res+=" ${clean}*${VCS_STATUS_STASHES}"
+  [[ -n $VCS_STATUS_ACTION          ]] && res+=" ${conflicted}${VCS_STATUS_ACTION}"
+  (( VCS_STATUS_NUM_CONFLICTED      )) && res+=" ${conflicted}~${VCS_STATUS_NUM_CONFLICTED}"
+  (( VCS_STATUS_NUM_STAGED          )) && res+=" ${modified}+${VCS_STATUS_NUM_STAGED}"
+  (( VCS_STATUS_NUM_UNSTAGED        )) && res+=" ${modified}!${VCS_STATUS_NUM_UNSTAGED}"
+  (( VCS_STATUS_NUM_UNTRACKED       )) && res+=" ${untracked}${(g::)POWERLEVEL9K_VCS_UNTRACKED_ICON}${VCS_STATUS_NUM_UNTRACKED}"
+  (( VCS_STATUS_HAS_UNSTAGED == -1  )) && res+=" ${modified}─"
+
+  typeset -g my_git_format=$res
+}
+functions -M my_git_formatter 2>/dev/null
 
 # https://github.com/romkatv/powerlevel10k/issues/1284#issuecomment-793806425
 function p10k-on-pre-prompt() {
