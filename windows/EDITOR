@@ -1,0 +1,23 @@
+#!/bin/sh
+
+find_bin() {
+    command -v "$1" 2>/dev/null
+}
+
+emacsclient_bin="$(find_bin emacsclient)"
+emacs_bin="$(find_bin emacs)"
+
+if [ -n "$emacsclient_bin" ] && "$emacsclient_bin" --eval t >/dev/null 2>&1; then
+    exec "$emacsclient_bin" "$@"
+fi
+
+if [ -n "$emacsclient_bin" ] && [ -n "$emacs_bin" ]; then
+    exec "$emacsclient_bin" --alternate-editor "$emacs_bin" "$@"
+fi
+
+if [ -n "$emacs_bin" ]; then
+    exec "$emacs_bin" "$@"
+fi
+
+printf '%s\n' "Could not find emacsclient or emacs in PATH." >&2
+exit 127
