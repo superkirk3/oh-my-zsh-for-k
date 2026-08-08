@@ -612,7 +612,7 @@ fi
 # WSL 里的 emacs 体验差,所以不在本机开,而是 ssh 到 Mac 调 emacsclient,
 # 让 Mac 的 Emacs 通过 TRAMP 路径 /ssh:win:<绝对路径> 直接编辑 WSL 里的文件。
 #
-# 依赖两条 ssh 别名,方向相反,缺一不可(现走 Tailscale,离开局域网也能用):
+# 依赖两条 ssh 别名,方向相反,缺一不可:
 #   WSL  ~/.ssh/config -> Host mac  (这里用来调 emacsclient)
 #   Mac  ~/.ssh/config -> Host win  (TRAMP 回连 WSL 用;建议开 ControlMaster,
 #                                    否则每次补全/保存都要重新握手)
