@@ -1225,27 +1225,29 @@ bindkey "^s" addspace_
 function prompt_my_fire_dir() {
   emulate -L zsh
   local split_path=(${(s:/:)${(%):-%~}//\%/%%})
-  local dir_fg=236
-  local dir_bg_home=175
-  local dir_bg_soft=182
-  local dir_bg_cool=147
-  local dir_bg_leaf=183
+  # 原版配色(f29faa9):饱和紫底 + 黄字,末段亮品红 + 白字。
+  # 曾一度改成粉彩(175/182/147/183 + 深灰字 236),不要了。
+  local dir_fg_word=3      # 中间各段的字:黄
+  local dir_fg_edge=255    # 首尾整段的字:白
+  local dir_bg_main=92     # #8700af 暗紫
+  local dir_bg_alt=97      # #875faf 中紫
+  local dir_bg_leaf=129    # #af00ff 亮品红(当前目录)
   (( $#split_path )) || split_path+=/
 
   if (( $#split_path == 1)); then
-    p10k segment -s SOLO -b $dir_bg_soft -f $dir_fg -t $split_path
+    p10k segment -s SOLO -b $dir_bg_main -f $dir_fg_edge -t $split_path
     return
   fi
-  p10k segment -s FIRST -b $dir_bg_home -f $dir_fg -t $split_path[1]
+  p10k segment -s FIRST -b $dir_bg_main -f $dir_fg_word -t $split_path[1]
   shift split_path
   while (( $#split_path > 1 )); do
-    p10k segment -s EVEN -b $dir_bg_cool -f $dir_fg -t $split_path[1]
+    p10k segment -s EVEN -b $dir_bg_alt -f $dir_fg_word -t $split_path[1]
     shift split_path
     (( $#split_path > 1 )) || break
-    p10k segment -s ODD -b $dir_bg_soft -f $dir_fg -t $split_path[1]
+    p10k segment -s ODD -b $dir_bg_main -f $dir_fg_word -t $split_path[1]
     shift split_path
   done
-  p10k segment -s LAST -b $dir_bg_leaf -f $dir_fg -t $split_path[1]
+  p10k segment -s LAST -b $dir_bg_leaf -f $dir_fg_edge -t $split_path[1]
 
 }
 
@@ -1294,7 +1296,7 @@ typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL='▶'
 typeset -g POWERLEVEL9K_RIGHT_PROMPT_FIRST_SEGMENT_START_SYMBOL='◀'
 
 typeset -gA my_fire_dir_icons=(
-  "${(b)HOME}"      '🦄'
+  "${(b)HOME}"      '🏠'
   "${(b)HOME}/*"    '📁'
   "/etc(|/*)"       '⚙️')
 
@@ -1303,15 +1305,12 @@ typeset POWERLEVEL9K_MY_FIRE_DIR_{FIRST,SOLO}_VISUAL_IDENTIFIER_EXPANSION='${my_
 POWERLEVEL9K_SHORTEN_DIR_LENGTH=
 POWERLEVEL9K_SHORTEN_DELIMITER=""
 POWERLEVEL9K_SHORTEN_STRATEGY="truncate_absolute"
-typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=236
-typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND=225
-POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🌈'
-typeset -g POWERLEVEL9K_VCS_CLEAN_BACKGROUND=116
-typeset -g POWERLEVEL9K_VCS_MODIFIED_BACKGROUND=152
-typeset -g POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND=152
-typeset -g POWERLEVEL9K_VCS_CONFLICTED_BACKGROUND=181
-typeset -g POWERLEVEL9K_VCS_LOADING_BACKGROUND=189
-typeset -g POWERLEVEL9K_VCS_{CLEAN,MODIFIED,UNTRACKED,CONFLICTED,LOADING}_FOREGROUND=236
+typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=232
+# 背景不设,继承 p10k_rainbow 加载后设的 99(紫)
+POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🦄'
+
+# git 段配色不覆盖,用 p10k_rainbow 自带的:干净=2(绿) 有改动=3(黄) 冲突=3 加载中=8。
+# 曾一度覆盖成粉彩(116/152/181/189 + 深灰字 236),不要了。
 typeset -g POWERLEVEL9K_VCS_PREFIX='on '
 typeset -g POWERLEVEL9K_VCS_VISUAL_IDENTIFIER_EXPANSION=''
 typeset -g POWERLEVEL9K_VCS_BRANCH_ICON='☘️ '
