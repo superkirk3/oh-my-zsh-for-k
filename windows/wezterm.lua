@@ -7,8 +7,22 @@ config.default_prog = { "wsl.exe", "--distribution", "Ubuntu", "--cd", "~" }
 config.font = wezterm.font_with_fallback({
   "JetBrainsMono Nerd Font",
   "CaskaydiaCove Nerd Font",
+  -- 显式指定中文回退字体。不写的话 WezTerm 会自己挑一个系统字体,
+  -- 挑中什么取决于环境,不同机器上宽度可能对不上。
+  "Microsoft YaHei",
+  "DengXian",
   "Consolas",
 })
+
+-- `·` `…` `─` 这类字符属于 Unicode 的"东亚歧义宽度":在 CJK 语境下算 2 格,
+-- 否则算 1 格。终端和 TUI 程序对它的判断一旦不一致,画出来的框就会错位
+-- (典型表现:某一行撑破边框,把中间的竖线顶掉)。
+-- 显式钉成窄,与绝大多数 TUI(含 Claude Code)的假设一致。
+config.treat_east_asian_ambiguous_width_as_wide = false
+
+-- 明确告诉远端我们是 xterm-256color。WezTerm 默认就是这个,
+-- 但显式写出来可以避免哪天默认值变了导致远端 terminfo 找不到。
+config.term = "xterm-256color"
 config.font_size = 12.5
 config.color_scheme = "Catppuccin Mocha"
 config.window_background_opacity = 0.98
@@ -54,16 +68,11 @@ config.keys = {
   { key = "v", mods = "CTRL|SHIFT", action = act.PasteFrom("Clipboard") },
   { key = "Insert", mods = "SHIFT", action = act.PasteFrom("Clipboard") },
   { key = "c", mods = "CTRL|SHIFT", action = act.CopyTo("Clipboard") },
-  { key = "d", mods = "CTRL|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
-  { key = "D", mods = "CTRL|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
-  { key = "h", mods = "CTRL|SHIFT", action = act.ActivatePaneDirection("Left") },
-  { key = "j", mods = "CTRL|SHIFT", action = act.ActivatePaneDirection("Down") },
-  { key = "k", mods = "CTRL|SHIFT", action = act.ActivatePaneDirection("Up") },
-  { key = "l", mods = "CTRL|SHIFT", action = act.ActivatePaneDirection("Right") },
-  { key = "LeftArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize({ "Left", 5 }) },
-  { key = "DownArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize({ "Down", 5 }) },
-  { key = "UpArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize({ "Up", 5 }) },
-  { key = "RightArrow", mods = "CTRL|SHIFT", action = act.AdjustPaneSize({ "Right", 5 }) },
+
+  -- 分屏/pane 导航全部交给 tmux,WezTerm 只管 tab 和窗口。
+  -- 两层分屏叠在一起时,Ctrl+Shift+H 到底切的是哪一层会彻底分不清。
+  -- (原来的 Ctrl+Shift+D 上下分屏其实也是失效的:mods 已含 SHIFT 时
+  --  再写大写 "D" 匹配不上,那条绑定从来没生效过。)
 }
 
 config.mouse_bindings = {
