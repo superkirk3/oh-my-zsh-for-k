@@ -656,6 +656,44 @@ if [[ "$(uname)" == 'Linux' ]] && \
             || { print -u2 "emacs: 打开失败,检查 Mac 上的 Emacs 是否在运行"; return 1 }
     }
     alias e=emacs
+
+    # ── 借用 Windows 上的 Clash 代理 ────────────────────────────────────────
+    # NAT 模式的 WSL 够不到 Windows 的 127.0.0.1,所以只能走网关 IP。
+    # 网关每次 WSL 重启都会变(172.x 随机分配),必须动态取,写死必然失效。
+    #
+    # 前提(缺一不可):
+    #   1. Clash Verge 里打开"允许局域网连接"(allow-lan),否则它只绑 127.0.0.1
+    #   2. Windows 防火墙放行 7897,且规则限定在 172.16.0.0/12 —— 别对办公网敞开
+    #
+    # 默认不自动开启:Clash 没运行时设了代理反而让所有请求失败。
+    # 想每次自动开,在 ~/.zshrc.local 里加一行 `wsl-proxy on >/dev/null 2>&1`。
+    : ${WSL_PROXY_PORT:=7897}
+    wsl-proxy() {
+        emulate -L zsh
+        local gw port=$WSL_PROXY_PORT
+        gw=$(ip route | awk '/^default/{print $3; exit}')
+        case ${1:-on} in
+            on)
+                if ! timeout 1 bash -c "echo > /dev/tcp/$gw/$port" 2>/dev/null; then
+                    print -u2 "wsl-proxy: $gw:$port 不通"
+                    print -u2 "  → 检查 Clash Verge 的\"允许局域网连接\",以及 Windows 防火墙"
+                    return 1
+                fi
+                export http_proxy="http://$gw:$port"  https_proxy="http://$gw:$port"
+                export HTTP_PROXY=$http_proxy         HTTPS_PROXY=$https_proxy
+                export no_proxy="localhost,127.0.0.1,::1,$gw,192.168.0.0/16"
+                export NO_PROXY=$no_proxy
+                print "proxy on  -> $gw:$port"
+                ;;
+            off)
+                unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+                print "proxy off"
+                ;;
+            status)
+                print "http_proxy=${http_proxy:-(未设置)}  网关=$gw"
+                ;;
+        esac
+    }
 fi
 
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
