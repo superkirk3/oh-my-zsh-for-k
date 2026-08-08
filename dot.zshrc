@@ -1256,14 +1256,34 @@ function prompt_my_fire_dir() {
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 
-# https://unix.stackexchange.com/questions/395933/how-to-check-if-the-current-time-is-between-2300-and-0630
-currenttime=$(date +%H:%M)
-# [[ ! -f $DOTDIR/p10k_lean.zsh ]] || source $DOTDIR/p10k_lean.zsh
-if [[ "$currenttime" > "21:00" ]] || [[ "$currenttime" < "05:30" ]]; then
-    [[ ! -f $DOTDIR/p10k_classic.zsh ]] || source $DOTDIR/p10k_classic.zsh
-else
-    [[ ! -f $DOTDIR/p10k_rainbow.zsh ]] || source $DOTDIR/p10k_rainbow.zsh && POWERLEVEL9K_OS_ICON_BACKGROUND='99'
+# p10k 配色方案。用 TRU_P10K_STYLE 控制:
+#   rainbow(默认) 路径带背景色块,配合 tru-theme 的调色板显示为紫色
+#   classic       路径无背景,只有前景色 —— 看起来就是一串灰点
+#   lean          最简
+#   auto          21:00~05:30 用 classic,其余时间 rainbow(以前的默认行为)
+#
+# 原先硬编码成 auto,导致同一台机器白天紫、晚上灰,两台机器在不同时间截图
+# 看起来像"配色没同步"。默认改成 rainbow,两边任何时候都一致。
+: ${TRU_P10K_STYLE:=rainbow}
+
+if [[ $TRU_P10K_STYLE == auto ]]; then
+    # https://unix.stackexchange.com/questions/395933/how-to-check-if-the-current-time-is-between-2300-and-0630
+    _tru_now=$(date +%H:%M)
+    if [[ "$_tru_now" > "21:00" || "$_tru_now" < "05:30" ]]; then
+        TRU_P10K_STYLE=classic
+    else
+        TRU_P10K_STYLE=rainbow
+    fi
 fi
+
+case $TRU_P10K_STYLE in
+    classic) [[ ! -f $DOTDIR/p10k_classic.zsh ]] || source $DOTDIR/p10k_classic.zsh ;;
+    lean)    [[ ! -f $DOTDIR/p10k_lean.zsh    ]] || source $DOTDIR/p10k_lean.zsh ;;
+    *)       [[ ! -f $DOTDIR/p10k_rainbow.zsh ]] || {
+                 source $DOTDIR/p10k_rainbow.zsh
+                 POWERLEVEL9K_OS_ICON_BACKGROUND='99'
+             } ;;
+esac
 
 # Use Unicode separators that render reliably without Nerd Font private glyphs.
 typeset -g POWERLEVEL9K_LEFT_SUBSEGMENT_SEPARATOR='·'
