@@ -657,6 +657,21 @@ if [[ "$(uname)" == 'Linux' ]] && \
     }
     alias e=emacs
 
+    # ── 在 WSL 里直接 `cursor .` 打开当前目录 ────────────────────────────────
+    # Cursor 装在 Windows 侧,它的 bin 目录不在 WSL 的 PATH 里。
+    # 用函数而不是把 /mnt/c/... 加进 PATH —— 9p 挂载慢,会拖累每一次命令查找。
+    # 打开后 remote-wsl 扩展自动接管:编辑器进程在 Windows,文件系统是 WSL 的。
+    cursor() {
+        emulate -L zsh
+        local bin
+        for bin in /mnt/c/Users/*/AppData/Local/Programs/cursor/resources/app/bin/cursor(N); do
+            "$bin" "$@"
+            return
+        done
+        print -u2 "cursor: 没找到 Windows 上的 Cursor"
+        return 127
+    }
+
     # ── 借用 Windows 上的 Clash 代理 ────────────────────────────────────────
     # NAT 模式的 WSL 够不到 Windows 的 127.0.0.1,所以只能走网关 IP。
     # 网关每次 WSL 重启都会变(172.x 随机分配),必须动态取,写死必然失效。
