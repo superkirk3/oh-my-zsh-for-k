@@ -1296,7 +1296,7 @@ typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL='▶'
 typeset -g POWERLEVEL9K_RIGHT_PROMPT_FIRST_SEGMENT_START_SYMBOL='◀'
 
 typeset -gA my_fire_dir_icons=(
-  "${(b)HOME}"      '🏠'
+  "${(b)HOME}"      '🦄'
   "${(b)HOME}/*"    '📁'
   "/etc(|/*)"       '⚙️')
 
@@ -1307,7 +1307,7 @@ POWERLEVEL9K_SHORTEN_DELIMITER=""
 POWERLEVEL9K_SHORTEN_STRATEGY="truncate_absolute"
 typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=232
 # 背景不设,继承 p10k_rainbow 加载后设的 99(紫)
-POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🦄'
+POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🐲'
 
 # git 段配色不覆盖,用 p10k_rainbow 自带的:干净=2(绿) 有改动=3(黄) 冲突=3 加载中=8。
 # 曾一度覆盖成粉彩(116/152/181/189 + 深灰字 236),不要了。
