@@ -394,6 +394,12 @@ set -g status-position top
 #   copymode.conf — copy-mode 进入 / ❯ 提示符跳转 / 鼠标选择不跳底部
 # 这里只保留 tru-tmux 未覆盖、或本机偏好不同的部分。
 
+# OSC52:让 tmux 里复制的内容直接进**外层终端所在机器**的剪贴板。
+# 不开的话,从 Windows ssh 到 Mac 再进 tmux 时,prefix+y 的 pbcopy 写的是
+# Mac 的剪贴板 —— 你在 Windows 上根本粘不出来。
+# WezTerm / iTerm2 都支持 OSC52,走的是终端转义序列而非本机剪贴板命令。
+set -g set-clipboard on
+
 # fuzzback:@fuzzback-bind 只支持单键(插件绑 prefix f),第二个快捷键手工补
 bind-key -T prefix C-f run-shell -b "$HOME/.tmux/plugins/tmux-fuzzback/scripts/fuzzback.sh"
 
