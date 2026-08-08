@@ -608,6 +608,45 @@ if [[ "$(uname)" == 'Darwin' ]]; then
     }
 fi
 
+# ── WSL: 把 emacs 转交给 Mac 上的 GUI Emacs ────────────────────────────────
+# WSL 里的 emacs 体验差,所以不在本机开,而是 ssh 到 Mac 调 emacsclient,
+# 让 Mac 的 Emacs 通过 TRAMP 路径 /ssh:win:<绝对路径> 直接编辑 WSL 里的文件。
+#
+# 依赖两条 ssh 别名,方向相反,缺一不可:
+#   WSL  ~/.ssh/config -> Host mac  (这里用来调 emacsclient)
+#   Mac  ~/.ssh/config -> Host win  (TRAMP 回连 WSL 用;建议开 ControlMaster,
+#                                    否则每次补全/保存都要重新握手)
+# Mac 侧 doom config.el 里要有 (server-start),否则 emacsclient 找不到 socket。
+if [[ "$(uname)" == 'Linux' && -n "${WSL_DISTRO_NAME:-}" ]]; then
+    : ${REMOTE_EMACS_HOST:=mac}      # WSL -> Mac 的 ssh 别名
+    : ${REMOTE_EMACS_BACKREF:=win}   # Mac -> WSL 的 ssh 别名(TRAMP 前缀用)
+
+    emacs() {
+        emulate -L zsh
+        local -a targets
+        local f
+        for f in "$@"; do
+            [[ $f == -* ]] && continue          # 丢掉 -nw 之类的开关,远端用不上
+            targets+=( "/ssh:${REMOTE_EMACS_BACKREF}:${f:a}" )
+        done
+        (( $#targets )) || targets=( "/ssh:${REMOTE_EMACS_BACKREF}:${PWD}" )
+
+        if ! ssh "$REMOTE_EMACS_HOST" 'emacsclient --eval t' >/dev/null 2>&1; then
+            print -u2 "emacs: $REMOTE_EMACS_HOST 上的 Emacs server 没起来,正在启动…"
+            ssh "$REMOTE_EMACS_HOST" 'open -a Emacs' >/dev/null 2>&1
+            local i
+            for i in {1..15}; do
+                ssh "$REMOTE_EMACS_HOST" 'emacsclient --eval t' >/dev/null 2>&1 && break
+                sleep 1
+            done
+        fi
+
+        ssh "$REMOTE_EMACS_HOST" "emacsclient --no-wait ${(j: :)${(q)targets}}" >/dev/null 2>&1 \
+            || { print -u2 "emacs: 打开失败,检查 Mac 上的 Emacs 是否在运行"; return 1 }
+    }
+    alias e=emacs
+fi
+
 # tramp mode for zsh: https://www.gnu.org/software/tramp/tramp-emacs.html
 # https://github.com/zsh-users/zsh-history-substring-search
 bindkey -M emacs '^P' history-substring-search-up

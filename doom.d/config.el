@@ -82,3 +82,17 @@
 ;;
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
+
+
+;;; ── 远程接入 (WSL) ─────────────────────────────────────────────────────
+;; WSL 里的 `emacs` 函数是通过 ssh 调本机 emacsclient、再用 TRAMP 路径
+;; /ssh:win:/home/kirk/... 打开 WSL 中的文件。没有 server 时 emacsclient
+;; 连不上,所以这里主动起一个。
+(require 'server)
+(unless (server-running-p) (server-start))
+
+;; TRAMP 复用 ~/.ssh/config 里的 Host win(2222 端口)。
+;; remote-file-name-inhibit-cache 默认 10 秒,跨局域网时补全会频繁重查,调大一点。
+(after! tramp
+  (setq tramp-default-method "ssh"
+        remote-file-name-inhibit-cache 60))
