@@ -400,6 +400,13 @@ set -g status-position top
 # WezTerm / iTerm2 都支持 OSC52,走的是终端转义序列而非本机剪贴板命令。
 set -g set-clipboard on
 
+# prefix + R:状态栏错乱时重建(典型症状:status-left/right 内容左右各出现一次)。
+# 成因:split-statusbar 把原始 status-format 缓存进 [6]/[7]、status-left/right
+# 缓存进 @status-*-default,且只在缓存为空时重建。从另一台机器 attach 导致
+# 尺寸变化时缓存会陈旧,于是重复渲染。
+# 单独 `prefix r` 只是 source-file,不清缓存 —— 必须先整体复位再 source,顺序不能反。
+bind-key R run-shell 'tmux set -gu status-format; tmux set -gu @status-left-default; tmux set -gu @status-right-default; tmux source-file ~/.tmux.conf' \; display-message "状态栏重建完成"
+
 # fuzzback:@fuzzback-bind 只支持单键(插件绑 prefix f),第二个快捷键手工补
 bind-key -T prefix C-f run-shell -b "$HOME/.tmux/plugins/tmux-fuzzback/scripts/fuzzback.sh"
 
