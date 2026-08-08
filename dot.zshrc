@@ -648,7 +648,7 @@ if [[ "$(uname)" == 'Linux' && -n "${WSL_DISTRO_NAME:-}" ]]; then
         for f in $targets; do forms+=( "(find-file \"$f\")" ); done
         local lisp="(progn ${(j: :)forms} (select-frame-set-input-focus (selected-frame)))"
 
-        ssh "$REMOTE_EMACS_HOST" "emacsclient --no-wait --eval ${(q)lisp}" >/dev/null 2>&1 \
+        ssh "$REMOTE_EMACS_HOST" "emacsclient --no-wait --eval ${(qq)lisp}" >/dev/null 2>&1 \
             || { print -u2 "emacs: 打开失败,检查 Mac 上的 Emacs 是否在运行"; return 1 }
     }
     alias e=emacs
