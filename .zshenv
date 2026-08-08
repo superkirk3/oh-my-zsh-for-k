@@ -6,6 +6,16 @@ export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 export LC_CTYPE="${LC_CTYPE:-en_US.UTF-8}"
 
+# Claude Code 的登录凭据存在 macOS 登录钥匙串里,而钥匙串只对 GUI 安全会话解锁。
+# 从别的机器 ssh 进来(包括 Cursor 的 Remote-SSH 服务端)拿不到它,会反复要求重新认证。
+# 解法:在 Mac 本地跑一次 `claude setup-token`,把输出的长期 token 存进下面这个文件:
+#   umask 077; claude setup-token > ~/.claude/oauth-token
+# 之后所有会话(终端 + Cursor 的 Claude 插件)都直接用它,不再碰钥匙串。
+# token 放在仓库外,别写进 dotfiles —— 这个仓库是公开的。
+if [[ -r "$HOME/.claude/oauth-token" ]]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(<"$HOME/.claude/oauth-token")"
+fi
+
 export DOTDIR="${DOTDIR:-$HOME/.zshrc.d}"
 export EDITOR_PATH="$DOTDIR"
 
