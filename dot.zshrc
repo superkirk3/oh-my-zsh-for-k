@@ -617,7 +617,11 @@ fi
 #   Mac  ~/.ssh/config -> Host win  (TRAMP 回连 WSL 用;建议开 ControlMaster,
 #                                    否则每次补全/保存都要重新握手)
 # Mac 侧 doom config.el 里要有 (server-start),否则 emacsclient 找不到 socket。
-if [[ "$(uname)" == 'Linux' && -n "${WSL_DISTRO_NAME:-}" ]]; then
+# 注意:不能只判断 $WSL_DISTRO_NAME —— 那个变量只有 wsl.exe 启动的 shell 才有,
+# 从外面 ssh 进 WSL 的会话里是空的。用 osrelease 里的 microsoft 标记才可靠。
+if [[ "$(uname)" == 'Linux' ]] && \
+   { [[ -n "${WSL_DISTRO_NAME:-}" ]] || [[ -d /run/WSL ]] || \
+     grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null }; then
     : ${REMOTE_EMACS_HOST:=mac}      # WSL -> Mac 的 ssh 别名
     : ${REMOTE_EMACS_BACKREF:=win}   # Mac -> WSL 的 ssh 别名(TRAMP 前缀用)
 
