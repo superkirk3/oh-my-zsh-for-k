@@ -1294,7 +1294,7 @@ typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL='▶'
 typeset -g POWERLEVEL9K_RIGHT_PROMPT_FIRST_SEGMENT_START_SYMBOL='◀'
 
 typeset -gA my_fire_dir_icons=(
-  "${(b)HOME}"      '🏠'
+  "${(b)HOME}"      '🦄'
   "${(b)HOME}/*"    '📁'
   "/etc(|/*)"       '⚙️')
 
