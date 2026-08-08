@@ -49,10 +49,13 @@ config.window_padding = {
 -- (注意不是 WSL 里那份,两者互相看不见)。
 config.launch_menu = {
   { label = "WSL Ubuntu", args = { "wsl.exe", "--distribution", "Ubuntu", "--cd", "~" } },
+  -- tmux 一律加 -u 强制 UTF-8。ssh.exe 不转发 LANG/LC_*,tmux 看不到 UTF-8 环境
+  -- 就会把中文和 powerline 图标全渲染成 `_`。locale 已在 .zshenv 里兜底,
+  -- 这里再钉一道,免得哪天 .zshenv 没被加载又踩回去。
   { label = "WSL + tmux", args = { "wsl.exe", "--distribution", "Ubuntu", "--cd", "~",
-                                   "--", "tmux", "new", "-A", "-s", "main" } },
+                                   "--", "tmux", "-u", "new", "-A", "-s", "main" } },
   { label = "Mac (ssh)",  args = { "ssh.exe", "mac" } },
-  { label = "Mac + tmux", args = { "ssh.exe", "-t", "mac", "tmux new -A -s main" } },
+  { label = "Mac + tmux", args = { "ssh.exe", "-t", "mac", "tmux -u new -A -s main" } },
   { label = "PowerShell", args = { "powershell.exe", "-NoLogo" } },
 }
 

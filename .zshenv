@@ -1,3 +1,11 @@
+# locale 必须设在 .zshenv,不能只写在 .zshrc。
+# `ssh host "tmux ..."` 是非交互执行,只加载 .zshenv;而 Windows 的 ssh.exe 默认
+# 不转发 LANG/LC_*(Mac 的 sshd 也没配 AcceptEnv)。两下一叠加,tmux 启动时看不到
+# 任何 UTF-8 环境,就会降级成非 UTF-8 模式,把中文和 powerline 图标全渲染成 `_`。
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export LC_CTYPE="${LC_CTYPE:-en_US.UTF-8}"
+
 export DOTDIR="${DOTDIR:-$HOME/.zshrc.d}"
 export EDITOR_PATH="$DOTDIR"
 
