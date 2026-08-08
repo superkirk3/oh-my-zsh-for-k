@@ -400,6 +400,27 @@ set -g status-position top
 # WezTerm / iTerm2 都支持 OSC52,走的是终端转义序列而非本机剪贴板命令。
 set -g set-clipboard on
 
+# ── continuum 自动存档改用 hook 触发 ───────────────────────────────────────
+# tmux-continuum 原本把存档命令以 #(...) 插值的形式塞进 status-right,靠
+# status-interval 每隔几秒求值一次来实现"定时存档"。但 split-statusbar 和
+# 主题切换都会重建 status-right —— 一重建,这个插值就被抹掉,自动存档从此静默失效。
+# (实测:配了 @continuum-save-interval '5',最后一次存档却停在一天前。)
+#
+# 改成挂在布局真正发生变化的 hook 上,不再依赖状态栏。
+# 调的是 continuum_save.sh 而不是 resurrect 的 save.sh:前者自带间隔门控和
+# 文件锁,可以安全地被高频触发,还会更新 #{continuum_status} 的时间戳。
+%hidden TRU_CONTINUUM_SAVE='run-shell -b "$HOME/.tmux/plugins/tmux-continuum/scripts/continuum_save.sh"'
+set-hook -g after-new-window    "$TRU_CONTINUUM_SAVE"
+set-hook -g after-new-session   "$TRU_CONTINUUM_SAVE"
+set-hook -g after-split-window  "$TRU_CONTINUUM_SAVE"
+set-hook -g after-kill-pane     "$TRU_CONTINUUM_SAVE"
+set-hook -g after-rename-window "$TRU_CONTINUUM_SAVE"
+set-hook -g pane-exited         "$TRU_CONTINUUM_SAVE"
+set-hook -g window-linked       "$TRU_CONTINUUM_SAVE"
+set-hook -g window-unlinked     "$TRU_CONTINUUM_SAVE"
+set-hook -g client-detached     "$TRU_CONTINUUM_SAVE"
+set-hook -g client-attached     "$TRU_CONTINUUM_SAVE"
+
 # prefix + R:状态栏错乱时重建(典型症状:status-left/right 内容左右各出现一次)。
 # 成因:split-statusbar 把原始 status-format 缓存进 [6]/[7]、status-left/right
 # 缓存进 @status-*-default,且只在缓存为空时重建。从另一台机器 attach 导致
