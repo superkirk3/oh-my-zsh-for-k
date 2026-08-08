@@ -641,7 +641,14 @@ if [[ "$(uname)" == 'Linux' && -n "${WSL_DISTRO_NAME:-}" ]]; then
             done
         fi
 
-        ssh "$REMOTE_EMACS_HOST" "emacsclient --no-wait ${(j: :)${(q)targets}}" >/dev/null 2>&1 \
+        # 走 --eval 而不是直接传文件名:ssh 会话没有 TERM/DISPLAY,emacsclient 会
+        # 误以为要自己开 frame 然后报 "Please set the environment variable DISPLAY
+        # or TERM"。用 find-file 在已运行的 Emacs 里打开,顺便把窗口切到前台。
+        local -a forms
+        for f in $targets; do forms+=( "(find-file \"$f\")" ); done
+        local lisp="(progn ${(j: :)forms} (select-frame-set-input-focus (selected-frame)))"
+
+        ssh "$REMOTE_EMACS_HOST" "emacsclient --no-wait --eval ${(q)lisp}" >/dev/null 2>&1 \
             || { print -u2 "emacs: 打开失败,检查 Mac 上的 Emacs 是否在运行"; return 1 }
     }
     alias e=emacs
