@@ -38,8 +38,10 @@ ZSH=$HOME/.oh-my-zsh
 # ZSH_THEME="spaceship"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
-# Keep the oh-my-zsh tmux plugin on the local tmux config file.
-export ZSH_TMUX_CONFIG="${ZSH_TMUX_CONFIG:-$HOME/.tmux.conf.local}"
+# Point the oh-my-zsh tmux plugin at the full gpakosz entrypoint so it
+# sources ~/.tmux.conf.local as an override instead of treating it as the
+# entire config.
+export ZSH_TMUX_CONFIG="$HOME/.tmux.conf"
 
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
@@ -223,8 +225,112 @@ else
   [[ -r /opt/homebrew/opt/fzf/shell/key-bindings.zsh ]] && source /opt/homebrew/opt/fzf/shell/key-bindings.zsh
 fi
 
+# ── NBA 配色主题 ──────────────────────────────────────────────────────────
+# themes/*.theme 是纯 name="value" 赋值,tmux 和 zsh 共用同一份文件。
+# 切换:tru-theme(fzf 选择器)/ tru-theme celtics / tru-theme random
+typeset -g TRU_THEMES_DIR="${TRU_THEMES_DIR:-$DOTDIR/themes}"
+
+_tru_theme_load() {
+    local f=${1:-$TRU_THEMES_DIR/current.theme}
+    [[ -r $f ]] || return 1
+    source $f
+}
+
+# 发一条 OSC。在 tmux 里必须套 passthrough 才能改到外层终端(需 allow-passthrough on)
+_tru_theme_osc() {
+    if [[ -n ${TMUX:-} ]]; then
+        printf '\ePtmux;\e\e]%s\a\e\\' "$1"
+    else
+        printf '\e]%s\a' "$1"
+    fi
+}
+
+_tru_theme_apply_term() {
+    local i var
+    for i in {0..15}; do
+        var="tru_term_color$i"
+        [[ -n ${(P)var:-} ]] && _tru_theme_osc "4;$i;${(P)var}"
+    done
+    [[ -n ${tru_term_fg:-}     ]] && _tru_theme_osc "10;$tru_term_fg"
+    [[ -n ${tru_term_bg:-}     ]] && _tru_theme_osc "11;$tru_term_bg"
+    [[ -n ${tru_term_cursor:-} ]] && _tru_theme_osc "12;$tru_term_cursor"
+}
+
+_tru_theme_fzf_opts() {
+    [[ -n ${tru_term_fg:-} ]] || return 1
+    print -r -- "--color=fg:${tru_term_fg},bg:-1,hl:${tmux_conf_theme_colour_5},fg+:${tru_term_color15},bg+:${tmux_conf_theme_colour_2},hl+:${tmux_conf_theme_colour_5},info:${tru_term_color12},prompt:${tmux_conf_theme_colour_5},pointer:${tmux_conf_theme_colour_5},marker:${tru_term_color10},spinner:${tru_term_color12},header:${tru_term_color8},query:${tru_term_fg},border:${tmux_conf_theme_colour_4}"
+}
+
+tru-theme() {
+    emulate -L zsh
+    local dir=$TRU_THEMES_DIR cur="" pick=${1:-}
+    [[ -L $dir/current.theme ]] && cur=${${$(readlink $dir/current.theme):t}:r}
+    local -a names; names=(${dir}/*.theme(N:t:r)); names=(${names:#current})
+    (( $#names )) || { print -ru2 -- "tru-theme: $dir 下没有主题文件"; return 1 }
+
+    case $pick in
+        -h|--help)
+            print -r -- "tru-theme            fzf 选择器(带实时预览)"
+            print -r -- "tru-theme <team>     直接切换,如 tru-theme celtics"
+            print -r -- "tru-theme random     随机来一个"
+            print -r -- "tru-theme current    打印当前主题"
+            print -r -- "tru-theme list       列出全部"
+            print -r -- ""
+            print -r -- "可选:${(j:, :)names}"
+            return 0 ;;
+        current) print -r -- "${cur:-(none)}"; return 0 ;;
+        list|-l|--list)
+            local n; for n in $names; do
+                [[ $n == $cur ]] && print -r -- "* $n" || print -r -- "  $n"
+            done; return 0 ;;
+        random) pick=${names[RANDOM % $#names + 1]} ;;
+        "") pick=$(print -rl -- $names | fzf --height=70% --reverse \
+                    --prompt='NBA theme> ' --preview-window=up:16 \
+                    --preview "$dir/preview $dir/{}.theme") || return 130 ;;
+    esac
+
+    [[ -r $dir/$pick.theme ]] || { print -ru2 -- "tru-theme: 没有这个主题: $pick"; return 1 }
+    ln -sfn $pick.theme $dir/current.theme
+    _tru_theme_load $dir/$pick.theme || return 1
+
+    # tmux 必须先重载:allow-passthrough 是重载时才打开的,顺序反了的话
+    # 下面发的 OSC 会被 tmux 直接吞掉,终端配色一次都刷不上。
+    if [[ -n ${TMUX:-} ]]; then
+        # split_statusbar 把原始 status-format 缓存进 [6]/[7],把 status-left/right
+        # 缓存进 @status-*-default,且只在缓存为空时重建;@hide-statusbar-mode-setto=off
+        # 时每次重载都从缓存恢复 status-left,不失效掉左右两段就会停在旧主题配色。
+        #
+        # /!\ 必须用 set -gu status-format 整体复位,不能只清 [6]。
+        #     status-format[0] 平时是"已拆分"状态(窗口列表已被 sed 掉),只清 [6] 的话,
+        #     状态栏每 status-interval 渲染一次会重跑 split_statusbar_on,它撞见空缓存就
+        #     把当前这个已拆分的 [0] 当成原始值缓存下来 —— 窗口标签从此永久消失。
+        #     复位成 tmux 内置默认(必定含窗口列表)就不存在这个竞态。
+        tmux set -gu status-format
+        tmux set -gu @status-left-default
+        tmux set -gu @status-right-default
+        if ! tmux source-file ~/.tmux.conf; then
+            print -ru2 -- "tru-theme: tmux 配置重载失败,tmux 配色未更新"
+        fi
+    fi
+    _tru_theme_apply_term
+
+    # 首次调用时记下不含配色的基础 opts;fzf 里后出现的 --color 生效,故追加即可
+    typeset -g _TRU_FZF_BASE=${_TRU_FZF_BASE-$FZF_DEFAULT_OPTS}
+    local o; o=$(_tru_theme_fzf_opts) && {
+        typeset -g FZF_COLOR_OPTS=$o
+        export FZF_DEFAULT_OPTS="$_TRU_FZF_BASE $o"
+    }
+    print -r -- "→ ${tru_theme_name} — ${tru_theme_desc}"
+}
+
+# 启动时载入并应用当前主题。tmux 里也照发:新开的终端窗口用的是 iTerm2 profile
+# 的颜色,不主动刷一次就永远对不上主题。20 条 OSC 而已,重复应用是幂等的。
+_tru_theme_load && _tru_theme_apply_term
+
 # fzf-tab
 typeset -g FZF_COLOR_OPTS='--color=fg:#e6edf3,bg:-1,hl:#ffd866,fg+:#ffffff,bg+:#334155,hl+:#ffe082,info:#8ab4f8,prompt:#e6edf3,pointer:#8ab4f8,marker:#7ee787,spinner:#8ab4f8,header:#c9d1d9,query:#f8fafc,border:#5c6370'
+# 主题存在时用主题配色覆盖上面的默认值
+_tru_theme_fzf_opts >/dev/null 2>&1 && typeset -g FZF_COLOR_OPTS="$(_tru_theme_fzf_opts)"
 zstyle ':fzf-tab:complete:_zlua:*' query-string input
 zstyle ':fzf-tab:complete:kill:argument-rest' fzf-preview 'ps --pid=$word -o cmd --no-headers -w -w'
 zstyle ':fzf-tab:complete:kill:argument-rest' fzf-flags ${(z)FZF_COLOR_OPTS} '--preview-window=down:3:wrap'
@@ -246,7 +352,14 @@ fi
 #zstyle ':fzf-tab:*' fzf-command 'fzf-tmux'
 # zstyle ':fzf-tab:*' switch-group ',' '.'
 
+# common-aliases defines a global alias P that expands to pygmentize.
+# If it survives from a previous load, re-sourcing ~/.zshrc can break
+# oh-my-zsh internals that use a bare P option token.
+unalias P 2>/dev/null
 source $ZSH/oh-my-zsh.sh
+if ! (( $+commands[pygmentize] )); then
+  unalias P 2>/dev/null
+fi
 # Customize to your needs...
 
 unalias h
@@ -1055,12 +1168,13 @@ function prompt_my_fire_dir() {
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 
-if [[ -f $DOTDIR/.p10k.zsh ]]; then
-    source $DOTDIR/.p10k.zsh
-elif [[ -f $DOTDIR/p10k_rainbow.zsh ]]; then
-    source $DOTDIR/p10k_rainbow.zsh
-elif [[ -f $DOTDIR/p10k_classic.zsh ]]; then
-    source $DOTDIR/p10k_classic.zsh
+# https://unix.stackexchange.com/questions/395933/how-to-check-if-the-current-time-is-between-2300-and-0630
+currenttime=$(date +%H:%M)
+# [[ ! -f $DOTDIR/p10k_lean.zsh ]] || source $DOTDIR/p10k_lean.zsh
+if [[ "$currenttime" > "21:00" ]] || [[ "$currenttime" < "05:30" ]]; then
+    [[ ! -f $DOTDIR/p10k_classic.zsh ]] || source $DOTDIR/p10k_classic.zsh
+else
+    [[ ! -f $DOTDIR/p10k_rainbow.zsh ]] || source $DOTDIR/p10k_rainbow.zsh && POWERLEVEL9K_OS_ICON_BACKGROUND='99'
 fi
 
 # Use Unicode separators that render reliably without Nerd Font private glyphs.
@@ -1206,3 +1320,4 @@ fi
 # end if dumb
 fi
 export PATH="$HOME/.local/bin:$PATH"
+# export ANTHROPIC_API_KEY="..."   # 不要把 key 写进仓库，用 keychain 或 ~/.config 里的本地文件

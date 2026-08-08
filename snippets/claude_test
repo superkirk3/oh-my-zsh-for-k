@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+for p in 12081 12082 12083; do
+    echo "port=$p"
+    curl --socks5-hostname "127.0.0.1:$p" --connect-timeout 8 --max-time 15 -sS -o /dev/null -w 'code=%{http_code} time=%{time_total} err=%{errormsg}\n' https://www.gstatic.com/generate_204
+done

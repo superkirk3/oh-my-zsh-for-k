@@ -7,6 +7,10 @@
 
 # -- navigation ----------------------------------------------------------------
 
+# Pass modified keys such as Shift+Enter through tmux to terminal TUIs.
+set -as terminal-features ',xterm*:extkeys'
+set -g extended-keys on
+
 # if you're running tmux within iTerm2
 #   - and tmux is 1.9 or 1.9a
 #   - and iTerm2 is configured to let option key act as +Esc
@@ -64,6 +68,33 @@ tmux_conf_theme_colour_15="#080808"   # dark gray
 tmux_conf_theme_colour_16="#d70000"   # red
 tmux_conf_theme_colour_17="#e4e4e4"   # white
 tmux_conf_theme_colour_18="#542583"   # purple
+
+# ── tru-tmux(gpakosz 之上的个人定制层)──────────────────────────────
+# @tru_loaded 阻止 TPM 再执行 tru.tmux 入口 —— 那会 source plugins.conf,
+# 其中的 tmux-fzf-speed 当前拉不到,且会覆盖下面保留的 choose-tree 绑定。
+set -g @tru_loaded 1
+set -g @plugin 'git@github.com:tru2dagame/tru-tmux'
+# 想改回纯 basename 窗口名:把下一行改成 set -g @tru_auto_rename off
+source -q ~/.tmux/plugins/tru-tmux/settings.conf
+source -q ~/.tmux/plugins/tru-tmux/bindings.conf
+source -q ~/.tmux/plugins/tru-tmux/copymode.conf
+#
+# /!\ 不要 source theme.conf。tmux 的 `foo=bar` 赋值在**解析期**立即生效,
+#     而 source-file 是排队命令、整个文件解析完才执行 —— 所以被 source 进来的
+#     变量赋值永远覆盖本文件的内联赋值,跟行号先后无关。sourcing theme.conf 会把
+#     下面的 window_status_format 换成 ASCII !/Z 版并丢掉 #{hostname_ssh}。
+#     theme.conf 的内容(紫色 #542583、分隔符、status_left)本文件已全部具备。
+#     注:命令(set -g / bind)不受此影响,仍按行号先后生效。
+#
+# 不 source plugins.conf —— 插件统一在本文件末尾的 tpm 段声明
+
+# ── NBA 配色主题 ────────────────────────────────────────────────────
+# current.theme 是指向 themes/<球队>.theme 的软链,由 zsh 的 `tru-theme` 切换。
+# 必须走 source-file:它的赋值会覆盖本文件下方的内联调色板(原理见上)。
+# 主题文件里同时带了 status_left_fg 这类复合变量 —— 那些必须和调色板在同一个
+# 文件里,因为 $var 在解析期就展开了,写在本文件会固化成旧配色。
+# 文件不存在时 -q 静默跳过,自动回落到下方的内联紫色调色板。
+source -q ~/.zshrc.d/themes/current.theme
 
 # default theme (ansi)
 #tmux_conf_theme_colour_1="colour0"
@@ -157,8 +188,7 @@ tmux_conf_theme_window_status_attr="none"
 
 # tmux_conf_theme_window_status_format="#I #W #{hostname_full_ssh}"
 #tmux_conf_theme_window_status_format="#{circled_window_index} #W"
-# Avoid emoji markers here; some terminal/tmux font combinations render them as tofu.
-tmux_conf_theme_window_status_format="#I #W#{?window_bell_flag, !,}#{?window_zoomed_flag, Z,} #{hostname_ssh}"
+tmux_conf_theme_window_status_format="#I #W#{?window_bell_flag,🔔,}#{?window_zoomed_flag,🔍,} #{hostname_ssh}"
 
 # window current status style
 #   - built-in variables are:
@@ -176,7 +206,7 @@ tmux_conf_theme_window_status_current_attr="bold"
 
 ## tmux_conf_theme_window_status_current_format="#I #W #{username_ssh} #{hostname_full_ssh}"
 #tmux_conf_theme_window_status_current_format="#{circled_window_index} #W"
-tmux_conf_theme_window_status_current_format="#I #W#{?window_zoomed_flag, Z,} #{hostname_ssh}"
+tmux_conf_theme_window_status_current_format="#I #W#{?window_zoomed_flag,🔍,} #{hostname_ssh}"
 
 # window activity status style
 tmux_conf_theme_window_status_activity_fg="default"
@@ -199,11 +229,10 @@ tmux_conf_theme_window_status_last_attr="none"
 # tmux_conf_theme_right_separator_main=""
 # tmux_conf_theme_right_separator_sub="|"
 
-# Use ASCII separators so the status line does not depend on patched Powerline/Nerd fonts.
-tmux_conf_theme_left_separator_main='|'
-tmux_conf_theme_left_separator_sub='|'
-tmux_conf_theme_right_separator_main='|'
-tmux_conf_theme_right_separator_sub='|'
+tmux_conf_theme_left_separator_main='\uE0B0'  # /!\ you don't need to install Powerline
+tmux_conf_theme_left_separator_sub='\uE0B1'   #   you only need fonts patched with
+tmux_conf_theme_right_separator_main='\uE0B2' #   Powerline symbols or the standalone
+tmux_conf_theme_right_separator_sub='\uE0B3'  #   PowerlineSymbols.otf font, see README.md
 
 
 
@@ -359,352 +388,22 @@ set -g status-position top
 # increase history size
 
 # ------ tru_custom ------------------------------
-set -g history-limit 50000
-set -g mouse on
-set -gu prefix2
-unbind C-a
-unbind C-b
-set -g prefix C-q
-bind C-q send-prefix
-bind -r p previous-window # select previous window
-bind -r n next-window     # select next window
-bind -n M-] next-window
-bind -n M-[ previous-window
+# 绝大部分设置已迁移到 tru-tmux(见本文件开头的 source 块):
+#   settings.conf — prefix C-q / mouse / history 50k / word-separators / 智能窗口名
+#   bindings.conf — M-[ M-] 切窗口,M-HJKL 调 pane,C-M-b C-M-f 移动窗口
+#   copymode.conf — copy-mode 进入 / ❯ 提示符跳转 / 鼠标选择不跳底部
+# 这里只保留 tru-tmux 未覆盖、或本机偏好不同的部分。
 
-bind -n M-H resize-pane -L 2
-bind -n M-J resize-pane -D 2
-bind -n M-K resize-pane -U 2
-bind -n M-L resize-pane -R 2
+# fuzzback:@fuzzback-bind 只支持单键(插件绑 prefix f),第二个快捷键手工补
+bind-key -T prefix C-f run-shell -b "$HOME/.tmux/plugins/tmux-fuzzback/scripts/fuzzback.sh"
 
-set -g word-separators "<>(){}[]/'\";@*+,=!£$%^&:#~?`¬|\\ "
+# 窗口选择器:保留 tmux 原生 choose-tree
+# (tru-tmux 的 plugins.conf 会把 w/C-w 改绑 tmux-fzf-speed,但该仓库当前不可达)
+bind-key w   choose-tree -Zw
+bind-key C-w choose-tree -Zw
 
-# https://stackoverflow.com/questions/28376611/how-to-automatically-rename-tmux-windows-to-the-current-directory
-set-option -g status-interval 1
-set-option -g automatic-rename on
-set-option -g automatic-rename-format '#{b:pane_current_path}'
-
-# unbind -T copy-mode M-x
-# unbind -T copy-mode-vi M-x
-# bind -T copy-mode x send-keys -X set-mark
-# bind -T copy-mode X send-keys -X jump-to-mark
-
-# After selecting text in a scrolled window, DON'T scroll to end
-# https://stackoverflow.com/questions/32374907/tmux-mouse-copy-mode-jumps-to-bottom
-# https://github.com/tmux/tmux/issues/337
-bind-key    -T copy-mode    MouseDragEnd1Pane    send-keys -X copy-selection-no-clear
-bind-key    -T copy-mode    M-w                  send-keys -X copy-selection
-bind-key    -T copy-mode    M-c                  send-keys -X copy-selection
-bind-key    -T copy-mode    M-V                  send-keys -X page-up
-#bind-key    -T root         TripleClick1Pane     select-pane -t = \; if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" "send -M" "copy-mode -H ; send -X select-line ; run -d0.3 ; send -X copy-selection"
-#bind-key    -T root         DoubleClick1Pane     select-pane -t = \; if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" "send -M" "copy-mode -H ; send -X select-word ; run -d0.3 ; send -X copy-selection"
-bind-key    -T root         TripleClick1Pane     select-pane -t = \; if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" "send -M" "copy-mode -H ; send -X select-line ; run -d0.3 ; send -X copy-selection-no-clear"
-bind-key    -T root         DoubleClick1Pane     select-pane -t = \; if-shell -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" "send -M" "copy-mode -H ; send -X select-word ; run -d0.3 ; send -X copy-selection-no-clear"
-bind-key    -T copy-mode-vi TripleClick1Pane     select-pane \; send-keys -X select-line \; send-keys -X copy-selection-no-clear \; #run-shell -d 0.1 \; send-keys -X copy-selection
-bind-key    -T copy-mode-vi DoubleClick1Pane     select-pane \; send-keys -X select-word \; send-keys -X copy-selection-no-clear \; #run-shell -d 0.1 \; send-keys -X copy-selection
-bind-key    -T copy-mode    TripleClick1Pane     select-pane \; send-keys -X select-line \; send-keys -X copy-selection-no-clear \; #run-shell -d 0.1 \; send-keys -X copy-selection
-bind-key    -T copy-mode    DoubleClick1Pane     select-pane \; send-keys -X select-word \; send-keys -X copy-selection-no-clear \; #run-shell -d 0.1 \; send-keys -X copy-selection
-bind-key    -T prefix       q                    copy-mode
-bind-key    -T prefix       C-q                  copy-mode
-bind-key    -T copy-mode    C-S-2                send-keys -X begin-selection
-#https://superuser.com/questions/343572/how-do-i-reorder-tmux-windows
-bind-key -n C-M-b swap-window -t -1\; select-window -t -1
-bind-key -n C-M-f swap-window -t +1\; select-window -t +1
-# fuzzback
-bind-key    -T prefix       f                    run-shell -b "$HOME/.tmux/plugins/tmux-fuzzback/scripts/fuzzback.sh"
-bind-key    -T prefix       C-f                  run-shell -b "$HOME/.tmux/plugins/tmux-fuzzback/scripts/fuzzback.sh"
-
-
-
-## bind-key "'" send-keys " tru/fzf-snippet" C-m
-## bind-key "'" send-keys "^[x" "_tru/fzf-snippet"
-# bind-key 's' send-keys " tru/tmux-ftpane" C-m
-
-
-TMUX_FZF_MENU=\
-"foo\necho 'Hello!'\n"\
-"bar\nls ~\n"\
-"sh\nsh ~/test.sh\n"
-
-bind -n C-l {
-  copy-mode
-  send -X stop-selection
-  send -X set-mark
-  send -X jump-to-mark
-  send -X halfpage-up
-#  send -X middle-line
-  send -X jump-to-mark
-}
-
-# https://www.kawabangga.com/posts/4256
-# https://ianthehenry.com/posts/tmux-copy-last-command/
-# https://github.com/ianthehenry/dotfiles/blob/master/.tmux.conf
-
-# jump to the previous prompt
-bind -n M-p {
-  copy-mode
-  send -X start-of-line
-  send -X cursor-up
-  send -X end-of-line
-  send -X search-backward-text "❯"
-  send -X stop-selection
-}
-
-# jump to the next prompt
-bind -n M-n {
-  copy-mode
-  send -X start-of-line
-  send -X cursor-down
-  send -X search-forward-text "❯"
-  send -X stop-selection
-}
-
-bind -n C-M-y {
-  copy-mode
-  send -X clear-selection
-
-  display "#{copy_cursor_y}"
-
-}
-
-bind -n C-M-p {
-  copy-mode
-  send -X clear-selection
-
-  # display "#{copy_cursor_x}"
-  if -F "#{==:0,#{copy_cursor_x}}" {
-    send -X cursor-up
-    send -X end-of-line
-  }
-  if -F "#{==:2,#{copy_cursor_x}}" {
-    send -X cursor-up
-    send -X end-of-line
-  }
-
-  if -F "#{m:*❯*,#{copy_cursor_line}}" {
-    send -X previous-word
-    if -F "#{m:*❯*,#{copy_cursor_word}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    } {
-      send -X next-word-end
-    }
-  }
-  # Home
-  if -F "#{m:*\uF015*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    send -X previous-word
-    send -X next-word-end
-  }
-  # Folder white
-  if -F "#{m:*\uF07C*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    send -X previous-word
-    send -X next-word-end
-  }
-  # System
-  if -F "#{m:*\uF013*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    send -X previous-word
-    send -X next-word-end
-  }
-  # Folder black
-  if -F "#{m:*\uF115*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    send -X previous-word
-    send -X next-word-end
-  }
-  if -F "#{m:*🦄*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    send -X previous-word
-    send -X next-word-end
-  }
-
-#  display -p '#{copy_cursor_y}'
-  if -F "#{m:*❯*,#{copy_cursor_line}}" {
-    send -X begin-selection
-    send -X search-backward-text "❯"
-    send -X cursor-right
-    send -X next-word-end
-    send -X previous-word
-    send -X stop-selection
-  } {
-    send -X begin-selection
-    send -X search-backward-text "❯"
-    send -X cursor-down
-    send -X next-word-end
-    send -X previous-word
-    send -X start-of-line
-    send -X stop-selection
-  }
-}
-
-# bind -n C-M-p {
-#   copy-mode
-#   send -X clear-selection
-
-#   if -F "#{==:0,#{copy_cursor_x}}" {
-#     send -X cursor-up
-#     send -X end-of-line
-#   }
-#   if -F "#{m:*❯*,#{copy_cursor_line}}" {
-#     send -X cursor-up
-#     send -X end-of-line
-#     # Home
-#     if -F "#{m:*\uF015*,#{copy_cursor_line}}" {
-#       send -X cursor-up
-#       send -X end-of-line
-#       send -X previous-word
-#       send -X next-word-end
-#     }
-#     # Folder white
-#     if -F "#{m:*\uF07C*,#{copy_cursor_line}}" {
-#       send -X cursor-up
-#       send -X end-of-line
-#       send -X previous-word
-#       send -X next-word-end
-#     }
-#     # System
-#     if -F "#{m:*\uF013*,#{copy_cursor_line}}" {
-#       send -X cursor-up
-#       send -X end-of-line
-#       send -X previous-word
-#       send -X next-word-end
-#     }
-#     # Folder black
-#     if -F "#{m:*\uF115*,#{copy_cursor_line}}" {
-#       send -X cursor-up
-#       send -X end-of-line
-#       send -X previous-word
-#       send -X next-word-end
-#     }
-#     if -F "#{m:*🏀*,#{copy_cursor_line}}" {
-#       send -X cursor-up
-#       send -X end-of-line
-#       send -X previous-word
-#       send -X next-word-end
-#     }
-#     send -X begin-selection
-#     send -X search-backward-text "❯"
-#     send -X cursor-down
-#     send -X next-word-end
-#     send -X previous-word
-#     send -X stop-selection
-#   }
-# }
-
-bind -n C-M-n {
-  copy-mode
-  send -X clear-selection
-  if -F "#{==:0,#{copy_cursor_x}}" {
-    send -X cursor-down
-    send -X end-of-line
-  }
-  send -X end-of-line
-  send -X search-forward-text "❯"
-  send -X end-of-line
-  if -F "#{m:*❯*,#{copy_cursor_line}}" {
-    send -X cursor-up
-    send -X end-of-line
-    # Home
-    if -F "#{m:*\uF015*,#{copy_cursor_line}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    }
-    # Folder white
-    if -F "#{m:*\uF07C*,#{copy_cursor_line}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    }
-    # System
-    if -F "#{m:*\uF013*,#{copy_cursor_line}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    }
-    # Folder black
-    if -F "#{m:*\uF115*,#{copy_cursor_line}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    }
-    if -F "#{m:*🏀*,#{copy_cursor_line}}" {
-      send -X cursor-up
-      send -X end-of-line
-      send -X previous-word
-      send -X next-word-end
-    }
-    send -X begin-selection
-    send -X search-backward-text "❯"
-    send -X cursor-down
-    send -X next-word-end
-    send -X previous-word
-    send -X stop-selection
-  }
-
-}
-
-
-# select the "block" below the cursor
-# bind -n C-M-n {
-
-#   copy-mode
-#   send -X clear-selection
-
-#   send -X cursor-up
-
-#   if -F "#{m:*❯*,#{copy_cursor_line}}" {
-#       send -X start-of-line
-#       send -X cursor-right
-#       send -X search-forward-text "❯"
-#       send -X start-of-line
-#       send -X cursor-left
-#   } {
-#       send -X cursor-down
-#   }
-
-
-#   send -X end-of-line
-#   send -X end-of-line
-#   send -X cursor-right
-#   send -X cursor-down
-
-#   send -X begin-selection
-#   send -X search-forward-text "❯"
-#   send -X start-of-line
-#   send -X start-of-line
-#   send -X cursor-left
-
-#   if -F "#{m:*🏀*,#{copy_cursor_line}}" {
-#       send -X start-of-line
-#       send -X start-of-line
-#       send -X cursor-up
-#       send -X cursor-up
-#       send -X start-of-line
-#       send -X end-of-line
-#   }
-
-#   send -X stop-selection
-
-# }
-
-bind-key -n M-z capture-pane \; save-buffer /tmp/tmux-buffer \; delete-buffer \; display-popup -w 90% -h 90% -E "$HOME/Documents/work_study/repo/shownotes/fzf_speed/fzf-speed"
-bind-key w capture-pane \; save-buffer /tmp/tmux-buffer \; delete-buffer \; display-popup -w 90% -h 90% -E "$HOME/Documents/work_study/repo/shownotes/fzf_speed/_tmux_find_windows,--.search.all.window.and.jump"
-bind-key C-w capture-pane \; save-buffer /tmp/tmux-buffer \; delete-buffer \; display-popup -w 90% -h 90% -E "$HOME/Documents/work_study/repo/shownotes/fzf_speed/_tmux_find_windows,--.search.all.window.and.jump"
-#bind-key -n M-z capture-pane \; save-buffer /tmp/tmux-buffer \; delete-buffer \; display-popup -w 80% -h 60% -E "$HOME/Documents/work_study/repo/shownotes/fzf_speed/fzf-speed2"
-bind-key k capture-pane \; save-buffer /tmp/tmux-buffer \; delete-buffer \; display-popup -w 90% -h 90% -E "$HOME/Documents/work_study/repo/shownotes/fzf_speed/_tmux_kill_windows_all,--.search.and.kill.selected.window.in.all.sessions"
+# 已移除:M-z 与 prefix k 原先指向 ~/Documents/work_study/repo/shownotes/fzf_speed/,
+# 该目录已不存在,这两个绑定早已失效。待 tmux-fzf-speed 可用后再启用 plugins.conf。
 # ------ tru_custom ------------------------------
 
 
@@ -742,17 +441,22 @@ set -g @continuum-save-interval '5'
 #set -g @plugin 'sainnhe/tmux-fzf'
 
 set -g @plugin 'roosta/tmux-fuzzback#feat/preview'
-set -g @fuzzback-bind 'C-f'
+# @fuzzback-bind 只认单键;C-f 在上面的 tru_custom 段手工绑定
 set -g @fuzzback-bind 'f'
 set -g @fuzzback-popup 1
 set -g @fuzzback-popup-size '90%'
 set -g @fuzzback-fzf-layout 'default'
 # set -g @plugin 'tmux-plugins/tmux-sidebar'
 
-# set -g @plugin 'tru2dagame/tmux-split-statusbar#window-second-line'
-# set -g @split-statusbar-mode 'on'
+# tru-tmux 配套插件
+# split_statusbar_on() 本身是本文件末尾的自定义函数(gpakosz 的 cut -c3- 机制只读本文件),
+# 这个插件提供配套的第二行状态栏与 F1/F2 开关。
+set -g @plugin 'tru2dagame/tmux-split-statusbar#window-second-line'
+set -g @split-statusbar-mode 'on'
 # set -g @split-statusbar-bindkey '-n F1'
 # set -g @split-status-hide-bindkey '-n F2'
+
+set -g @plugin 'tru2dagame/TmuxVTab'
 
 
 # dracula theme

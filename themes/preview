@@ -1,0 +1,63 @@
+#!/bin/zsh
+# Render a visual preview of an NBA theme file.
+# Usage: preview <path-to-*.theme>
+# Stand-alone on purpose: fzf runs previews in a non-interactive shell where
+# .zshrc functions do not exist.
+
+emulate -L zsh
+setopt no_unset
+
+f=${1:-}
+[[ -r $f ]] || { print -r -- "no such theme: $f"; exit 1 }
+source $f
+
+# "#RRGGBB" -> "R;G;B"
+rgb() {
+  local h=${1#\#}
+  print -r -- "$(( 16#${h[1,2]} ));$(( 16#${h[3,4]} ));$(( 16#${h[5,6]} ))"
+}
+fg() { print -n -- $'\e[38;2;'"$(rgb $1)"m }
+bg() { print -n -- $'\e[48;2;'"$(rgb $1)"m }
+rs() { print -n -- $'\e[0m' }
+
+print -r -- ""
+fg $tmux_conf_theme_colour_5; print -n -- "  $tru_theme_name"; rs
+fg $tmux_conf_theme_colour_3; print -r -- "  — $tru_theme_desc"; rs
+print -r -- ""
+
+# ---- simulated tmux status bar ----------------------------------------------
+print -n -- "  "
+bg $tmux_conf_theme_colour_9;  fg $tmux_conf_theme_colour_18; print -n -- " ❐ dev "
+bg $tmux_conf_theme_colour_18; fg $tmux_conf_theme_colour_5;  print -n -- " ↑3h "
+bg $tmux_conf_theme_colour_11; fg $tmux_conf_theme_colour_8;  print -n -- " ● "
+bg $tmux_conf_theme_colour_1;  fg $tmux_conf_theme_colour_3;  print -n -- "  1 zsh "
+bg $tmux_conf_theme_colour_18; fg $tmux_conf_theme_colour_5;  print -n -- " 2 nvim "
+bg $tmux_conf_theme_colour_2;  fg $tmux_conf_theme_colour_12; print -n -- " 3 logs "
+bg $tmux_conf_theme_colour_1;  fg $tmux_conf_theme_colour_3;  print -n -- "  "
+bg $tmux_conf_theme_colour_16; fg $tmux_conf_theme_colour_13; print -n -- " 12:34 "
+bg $tmux_conf_theme_colour_17; fg $tmux_conf_theme_colour_14; print -n -- " kirkqiu "
+rs; print -r -- ""
+print -r -- ""
+
+# ---- terminal text sample ---------------------------------------------------
+bg $tru_term_bg
+print -n -- "  "; fg $tru_term_fg;      print -n -- "\$ git status"
+print -n -- "                      "; rs; bg $tru_term_bg; print -r -- ""
+print -n -- "  "; fg $tru_term_color2;  print -n -- "modified:"
+fg $tru_term_fg; print -n -- "   README.org"
+print -n -- "              "; rs; bg $tru_term_bg; print -r -- ""
+print -n -- "  "; fg $tru_term_color1;  print -n -- "deleted:"
+fg $tru_term_fg;  print -n -- "    old.conf"
+print -n -- "                "; rs; bg $tru_term_bg; print -r -- ""
+print -n -- "  "; fg $tru_term_color8;  print -n -- "# dim comment stays readable"
+print -n -- "   "; rs; print -r -- ""
+print -r -- ""
+
+# ---- ANSI palette -----------------------------------------------------------
+print -n -- "  "
+for i in {0..7};  do bg $(eval print -r -- \$tru_term_color$i); print -n -- "   "; done
+rs; print -r -- ""
+print -n -- "  "
+for i in {8..15}; do bg $(eval print -r -- \$tru_term_color$i); print -n -- "   "; done
+rs; print -r -- ""
+print -r -- ""

@@ -1,0 +1,85 @@
+# Suns — Valley Purple
+# NBA-team tmux + terminal theme.  Pure `name="value"` assignments ONLY:
+# this file is sourced by BOTH tmux (source-file) and zsh (source).
+#
+# /!\ The composite vars below MUST live here, not in .tmux.conf.local.
+#     tmux expands $vars while *parsing*, and source-file runs only after the
+#     whole file is parsed — so a composite written inline would bake in the
+#     inline palette and ignore this theme entirely.
+#
+# Generated and WCAG-validated by themes/check-contrast.py
+
+tru_theme_key="suns"
+tru_theme_name="Suns"
+tru_theme_desc="Valley Purple"
+
+# ---- gpakosz / oh-my-tmux palette -------------------------------------------
+tmux_conf_theme_colour_1="#14121E" # main background
+tmux_conf_theme_colour_2="#292738" # raised background
+tmux_conf_theme_colour_3="#9BA3AE" # inactive tab text
+tmux_conf_theme_colour_4="#A34540" # pane border / clock
+tmux_conf_theme_colour_5="#E56020" # team accent (active tab text)
+tmux_conf_theme_colour_6="#14121E" # background
+tmux_conf_theme_colour_7="#E6EAF2" # main foreground
+tmux_conf_theme_colour_8="#14121E" # background
+tmux_conf_theme_colour_9="#E56020" # status-left seg1 bg
+tmux_conf_theme_colour_10="#FF74C3" # pink accent
+tmux_conf_theme_colour_11="#1FAF5E" # status-left seg3 bg
+tmux_conf_theme_colour_12="#9BA3AE" # dim foreground
+tmux_conf_theme_colour_13="#EEF1F6" # white
+tmux_conf_theme_colour_14="#14121E" # dark
+tmux_conf_theme_colour_15="#292738" # status-right seg1 bg
+tmux_conf_theme_colour_16="#B4152F" # status-right seg2 bg
+tmux_conf_theme_colour_17="#EEF1F6" # status-right seg3 bg
+tmux_conf_theme_colour_18="#220F66" # TEAM PRIMARY (active tab bg)
+
+# ---- composites (reference the palette above; order matters) -----------------
+tmux_conf_theme_focused_pane_bg="$tmux_conf_theme_colour_2"
+tmux_conf_theme_pane_border="$tmux_conf_theme_colour_2"
+tmux_conf_theme_pane_active_border="$tmux_conf_theme_colour_4"
+tmux_conf_theme_pane_indicator="$tmux_conf_theme_colour_4"
+tmux_conf_theme_pane_active_indicator="$tmux_conf_theme_colour_4"
+tmux_conf_theme_message_fg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_message_bg="$tmux_conf_theme_colour_5"
+tmux_conf_theme_message_command_fg="$tmux_conf_theme_colour_5"
+tmux_conf_theme_message_command_bg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_mode_fg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_mode_bg="$tmux_conf_theme_colour_5"
+tmux_conf_theme_status_fg="$tmux_conf_theme_colour_3"
+tmux_conf_theme_status_bg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_window_status_fg="$tmux_conf_theme_colour_3"
+tmux_conf_theme_window_status_bg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_window_status_current_fg="$tmux_conf_theme_colour_5"
+tmux_conf_theme_window_status_current_bg="$tmux_conf_theme_colour_18"
+tmux_conf_theme_window_status_bell_fg="$tmux_conf_theme_colour_5"
+tmux_conf_theme_window_status_last_fg="$tmux_conf_theme_colour_12"
+tmux_conf_theme_window_status_last_bg="$tmux_conf_theme_colour_2"
+tmux_conf_theme_status_left_fg="$tmux_conf_theme_colour_18,$tmux_conf_theme_colour_5,$tmux_conf_theme_colour_8"
+tmux_conf_theme_status_left_bg="$tmux_conf_theme_colour_9,$tmux_conf_theme_colour_18,$tmux_conf_theme_colour_11"
+tmux_conf_theme_status_right_fg="$tmux_conf_theme_colour_12,$tmux_conf_theme_colour_13,$tmux_conf_theme_colour_14"
+tmux_conf_theme_status_right_bg="$tmux_conf_theme_colour_15,$tmux_conf_theme_colour_16,$tmux_conf_theme_colour_17"
+tmux_conf_theme_clock_colour="$tmux_conf_theme_colour_4"
+
+# ---- terminal ---------------------------------------------------------------
+tru_term_bg="#14121E"
+tru_term_fg="#E6EAF2"
+tru_term_cursor="#E56020"
+tru_term_cursor_text="#14121E"
+tru_term_sel_bg="#220F66"
+tru_term_sel_fg="#E6EAF2"
+tru_term_color0="#2C2C38"
+tru_term_color1="#F0616F"
+tru_term_color2="#5FD38A"
+tru_term_color3="#E7B95C"
+tru_term_color4="#6EA8FF"
+tru_term_color5="#C89BF0"
+tru_term_color6="#5FCFD8"
+tru_term_color7="#E6EAF2"
+tru_term_color8="#9BA3AE"
+tru_term_color9="#FF8A94"
+tru_term_color10="#84E5A8"
+tru_term_color11="#F5D07F"
+tru_term_color12="#93C0FF"
+tru_term_color13="#DCBAFF"
+tru_term_color14="#8FE3EA"
+tru_term_color15="#EEF1F6"
