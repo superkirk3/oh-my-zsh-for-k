@@ -7,12 +7,19 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 export LC_CTYPE="${LC_CTYPE:-en_US.UTF-8}"
 
 # Claude Code 的登录凭据存在 macOS 登录钥匙串里,而钥匙串只对 GUI 安全会话解锁。
-# 从别的机器 ssh 进来(包括 Cursor 的 Remote-SSH 服务端)拿不到它,会反复要求重新认证。
-# 解法:在 Mac 本地跑一次 `claude setup-token`,把输出的长期 token 存进下面这个文件:
-#   umask 077; claude setup-token > ~/.claude/oauth-token
-# 之后所有会话(终端 + Cursor 的 Claude 插件)都直接用它,不再碰钥匙串。
-# token 放在仓库外,别写进 dotfiles —— 这个仓库是公开的。
-if [[ -r "$HOME/.claude/oauth-token" ]]; then
+# 从别的机器 ssh 进来(包括 Cursor/VSCode 的 Remote-SSH 服务端)读不到它,会反复要求认证。
+#
+# 折中:**只在远程会话里**注入长期 token,本机 GUI 会话继续走钥匙串。
+# 钥匙串有按二进制的 ACL、且随会话锁定,比环境变量安全;能用就别降级。
+# SSH_CONNECTION 只有 ssh 进来的会话才有 —— Remote-SSH 的服务端是经 ssh 拉起的,
+# 所以它和它派生的插件进程都会有;本地开的终端则没有。
+#
+# token 来自 `umask 077; claude setup-token > ~/.claude/oauth-token`(600 权限)。
+# 放仓库外 —— 这个 dotfiles 仓库是公开的,绝不能进去。
+#
+# /!\ 注意这只能限制"哪些会话",没法限制"哪个程序":同一个 ssh 会话里任何进程
+#     都能读到这个变量。真出问题就去账号设置里吊销 token 重发一个。
+if [[ -n "${SSH_CONNECTION:-}" && -r "$HOME/.claude/oauth-token" ]]; then
   export CLAUDE_CODE_OAUTH_TOKEN="$(<"$HOME/.claude/oauth-token")"
 fi
 
