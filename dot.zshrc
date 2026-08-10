@@ -608,6 +608,29 @@ if [[ "$(uname)" == 'Darwin' ]]; then
     }
 fi
 
+# ── Syncthing 状态速查(仅 Mac,WSL 上没装 Syncthing)────────────────────────
+# 在 WorkHome 里跑 git 前先看一眼:Syncthing 正在写 .git/objects 时执行 git,
+# 可能读到写了一半的状态。Windows 侧有同名的 PowerShell 函数。
+if [[ "$(uname)" == 'Darwin' ]]; then
+    gsync() {
+        emulate -L zsh
+        local cfg="$HOME/Library/Application Support/Syncthing/config.xml"
+        [[ -r $cfg ]] || { print -u2 "找不到 Syncthing 配置"; return 1 }
+        local key=$(sed -n 's/.*<apikey>\(.*\)<\/apikey>.*/\1/p' "$cfg" | head -1)
+        local f
+        for f in workhome drop; do
+            curl -sS -H "X-API-Key: $key" \
+                 "http://127.0.0.1:8384/rest/db/status?folder=$f" 2>/dev/null |
+            python3 -c "
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: print('  $f  查询失败'); raise SystemExit
+ok = d.get('state')=='idle' and d.get('needFiles',0)==0
+print('  %-10s %-9s 待传 %-6s %s' % ('$f', d.get('state'), d.get('needFiles'), '✓' if ok else '…'))"
+        done
+    }
+fi
+
 # ── WSL: 把 emacs 转交给 Mac 上的 GUI Emacs ────────────────────────────────
 # WSL 里的 emacs 体验差,所以不在本机开,而是 ssh 到 Mac 调 emacsclient,
 # 让 Mac 的 Emacs 通过 TRAMP 路径 /ssh:win:<绝对路径> 直接编辑 WSL 里的文件。
