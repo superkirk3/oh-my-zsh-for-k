@@ -96,6 +96,28 @@ export SAVEHIST=500000
 autoload -Uz compinit
 compinit
 
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+setopt EXTENDED_GLOB GLOB_DOTS NO_CASE_GLOB NO_NOMATCH
+setopt APPEND_HISTORY EXTENDED_HISTORY INC_APPEND_HISTORY SHARE_HISTORY
+setopt HIST_EXPIRE_DUPS_FIRST HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS HIST_VERIFY
+setopt INTERACTIVE_COMMENTS
+
+_user_zcompcache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompcache"
+mkdir -p "$_user_zcompcache" 2>/dev/null
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "$_user_zcompcache"
+zstyle ':completion:*' menu select=2
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=** r:|=**' 'l:|=* r:|=*'
+zstyle ':completion:*' accept-exact-dirs true
+zstyle ':completion:*' squeeze-slashes true
+zstyle ':completion:*' list-dirs-first true
+zstyle ':completion:*' verbose true
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*' special-dirs true
+zstyle ':completion:*' rehash true
+unset _user_zcompcache
+
 if [[ -f ~/.fzf.zsh ]]; then
   source ~/.fzf.zsh
 else
@@ -117,6 +139,76 @@ zstyle ':fzf-tab:complete:kill:argument-rest' fzf-preview 'ps --pid=$word -o cmd
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'if command -v exa >/dev/null 2>&1; then exa -1 --color=always $realpath; else ls -1 --color=always $realpath; fi'
 
 source "$ZSH/oh-my-zsh.sh"
+
+zstyle ':completion:*' menu select=2
+zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=** r:|=**' 'l:|=* r:|=*'
+zstyle ':completion:*' accept-exact-dirs true
+zstyle ':completion:*' squeeze-slashes true
+zstyle ':completion:*' list-dirs-first true
+
+alias reload!='source ~/.zshrc'
+alias path='print -l ${(s/:/)PATH}'
+alias c='clear'
+alias cls='clear'
+alias md='mkdir -p'
+alias rd='rmdir'
+alias h='history'
+alias j='jobs -l'
+alias -- -='cd -'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias work='cd ~/workhome'
+alias wh='cd ~/workhome'
+
+if (( $+commands[batcat] )); then
+  alias bat='batcat'
+  alias catp='batcat --paging=never --plain'
+elif (( $+commands[bat] )); then
+  alias catp='bat --paging=never --plain'
+fi
+
+if (( $+commands[eza] )); then
+  alias ls='eza --icons=auto --group-directories-first'
+  alias ll='eza -al --icons=auto --group-directories-first --git'
+  alias la='eza -a --icons=auto --group-directories-first'
+  alias lt='eza --tree --level=2 --icons=auto --group-directories-first'
+elif (( $+commands[exa] )); then
+  alias ls='exa --icons --group-directories-first'
+  alias ll='exa -al --icons --group-directories-first --git'
+  alias la='exa -a --icons --group-directories-first'
+  alias lt='exa --tree --level=2 --icons --group-directories-first'
+else
+  alias ls='ls --color=auto'
+  alias ll='ls -alF --color=auto'
+  alias la='ls -A --color=auto'
+  alias l='ls -CF --color=auto'
+fi
+
+alias grep='grep --color=auto'
+(( $+commands[rg] )) && alias rg='rg --smart-case'
+
+alias g='git'
+alias gs='git status --short --branch'
+alias gst='git status --short --branch'
+alias ga='git add'
+alias gaa='git add --all'
+alias gc='git commit'
+alias gcm='git commit -m'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gl='git pull --ff-only'
+alias gp='git push'
+alias gb='git branch'
+alias gco='git checkout'
+alias gsw='git switch'
+alias glog='git log --oneline --graph --decorate --all'
+
+(( $+commands[docker] )) && alias d='docker'
+(( $+commands[docker] )) && alias dc='docker compose'
+(( $+commands[kubectl] )) && alias k='kubectl'
+(( $+commands[terraform] )) && alias tf='terraform'
+(( $+commands[terragrunt] )) && alias tg='terragrunt'
 
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=99,underline"
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
@@ -226,6 +318,40 @@ user_proxy() {
 
 user_proxy off
 
+if (( $+commands[clip.exe] )); then
+  wcopy() {
+    if (( $# )); then
+      print -rn -- "$*" | clip.exe
+    else
+      clip.exe
+    fi
+  }
+  alias pbcopy='wcopy'
+fi
+
+if (( $+commands[powershell.exe] )); then
+  wpaste() {
+    powershell.exe -NoProfile -Command '[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8; Get-Clipboard -Raw' 2>/dev/null | sed $'s/\r$//'
+  }
+  alias pbpaste='wpaste'
+fi
+
+wexplorer() {
+  local target=${1:-.}
+  explorer.exe "$(wslpath -w "$target")" >/dev/null 2>&1 &!
+}
+
+wopen() {
+  local target=${1:-.}
+  if (( $+commands[wslview] )); then
+    wslview "$target" >/dev/null 2>&1 &!
+  else
+    explorer.exe "$(wslpath -w "$target")" >/dev/null 2>&1 &!
+  fi
+}
+
+alias open='wopen'
+
 if (( $+commands[wslview] )) && ! (( $+commands[xdg-open] )); then
     xdg-open() {
         wslview "$@"
@@ -247,6 +373,41 @@ fzf() {
     command fzf --cycle "$@"
   fi
 }
+
+_user_fd_bin() {
+  if (( $+commands[fd] )); then
+    print -r -- "$commands[fd]"
+  elif (( $+commands[fdfind] )); then
+    print -r -- "$commands[fdfind]"
+  else
+    return 1
+  fi
+}
+
+_user_fzf_files() {
+  local fd_bin
+  fd_bin=$(_user_fd_bin 2>/dev/null) || {
+    find . -type f 2>/dev/null
+    return
+  }
+  "$fd_bin" --type f --hidden --follow --exclude .git --exclude node_modules --exclude .cache "$@"
+}
+
+_user_fzf_dirs() {
+  local fd_bin
+  fd_bin=$(_user_fd_bin 2>/dev/null) || {
+    find . -type d 2>/dev/null
+    return
+  }
+  "$fd_bin" --type d --hidden --follow --exclude .git --exclude node_modules --exclude .cache "$@"
+}
+
+if _user_fd_for_fzf=$(_user_fd_bin 2>/dev/null); then
+  export FZF_DEFAULT_COMMAND="$_user_fd_for_fzf --type f --hidden --follow --exclude .git --exclude node_modules --exclude .cache"
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_ALT_C_COMMAND="$_user_fd_for_fzf --type d --hidden --follow --exclude .git --exclude node_modules --exclude .cache"
+  unset _user_fd_for_fzf
+fi
 
 user_fzf_popup() {
   local popup_size=${1:-80%}
@@ -402,6 +563,35 @@ fzf-down() {
   user_fzf_popup 88% --border --bind ctrl-/:toggle-preview "$@"
 }
 
+for _user_fzf_alias in ff fe cdf fkill fbr; do
+  unalias "$_user_fzf_alias" 2>/dev/null || true
+done
+unset _user_fzf_alias
+
+ff() {
+  _user_fzf_files | user_fzf_popup 90% -m --preview '(batcat --color=always --style=numbers {} 2>/dev/null || bat --color=always --style=numbers {} 2>/dev/null || sed -n "1,200p" {})'
+}
+
+fe() {
+  local -a files
+  files=("${(@f)$(_user_fzf_files | user_fzf_popup 90% -m --preview '(batcat --color=always --style=numbers {} 2>/dev/null || bat --color=always --style=numbers {} 2>/dev/null || sed -n "1,200p" {})')}")
+  (( $#files )) || return 0
+  "${VISUAL:-${EDITOR:-emacs}}" $files
+}
+
+cdf() {
+  local dir
+  dir=$(_user_fzf_dirs | user_fzf_popup 90% --preview 'tree -C {} 2>/dev/null | head -200') || return
+  [[ -n "$dir" ]] && cd "$dir"
+}
+
+fkill() {
+  local signal=${1:-TERM}
+  local pid
+  pid=$(ps -ef | sed 1d | user_fzf_popup 90% --header "kill -$signal" --preview 'echo {}' | awk '{print $2}') || return
+  [[ -n "$pid" ]] && kill "-$signal" "$pid"
+}
+
 fzf_gf() {
   is_in_git_repo || return
   git -c color.status=always status --short |
@@ -449,6 +639,13 @@ fzf_gs() {
   cut -d: -f1
 }
 
+fbr() {
+  local branch
+  branch=$(fzf_gb | head -n1) || return
+  [[ -n "$branch" ]] || return 0
+  git switch "${branch#origin/}" 2>/dev/null || git checkout "$branch"
+}
+
 join-lines() {
   local item
   while read item; do
@@ -483,6 +680,28 @@ addspace_() {
 
 zle -N addspace_
 bindkey "^s" addspace_
+
+autoload -Uz bracketed-paste-magic
+zle -N bracketed-paste bracketed-paste-magic
+
+_user_insert_windows_clipboard() {
+    emulate -L zsh
+    local clip
+
+    if ! (( $+commands[powershell.exe] )); then
+        zle -M "powershell.exe is not available"
+        return 1
+    fi
+
+    clip=$(wpaste 2>/dev/null)
+    [[ -n "$clip" ]] || return 0
+    LBUFFER+="$clip"
+    zle reset-prompt
+}
+
+zle -N _user_insert_windows_clipboard
+bindkey '^[v' _user_insert_windows_clipboard
+bindkey '^X^V' _user_insert_windows_clipboard
 
 if [[ -r "$DOTDIR/p10k_wsl.zsh" ]]; then
     source "$DOTDIR/p10k_wsl.zsh"
