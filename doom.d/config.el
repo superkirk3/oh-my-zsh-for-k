@@ -30,6 +30,13 @@
 ;; wasn't installed correctly. Font issues are rarely Doom issues!
 
 ;; Shell launchers handle app activation; Doom owns frame size and font defaults.
+(setq frame-resize-pixelwise t
+      window-resize-pixelwise t
+      mouse-wheel-scroll-amount '(1 ((shift) . 5) ((control) . nil))
+      mouse-wheel-progressive-speed nil
+      window-divider-default-right-width 4
+      window-divider-default-bottom-width 1)
+
 (dolist (frame-setting '((width . 138) (height . 42)))
   (add-to-list 'initial-frame-alist frame-setting)
   (add-to-list 'default-frame-alist frame-setting))
@@ -37,6 +44,15 @@
 (add-hook 'window-setup-hook
           (lambda ()
             (set-face-attribute 'default nil :height 150)))
+
+(add-hook 'after-init-hook
+          (lambda ()
+            (when (fboundp 'xterm-mouse-mode)
+              (xterm-mouse-mode 1))
+            (when (fboundp 'mouse-wheel-mode)
+              (mouse-wheel-mode 1))
+            (when (fboundp 'window-divider-mode)
+              (window-divider-mode 1))))
 
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
